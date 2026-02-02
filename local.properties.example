@@ -1,0 +1,8 @@
+## This file should NOT be checked into version control.
+## Copy this file to local.properties and fill in your values.
+
+sdk.dir=C\:\\Users\\YOUR_USER\\AppData\\Local\\Android\\Sdk
+
+## Supabase Configuration
+SUPABASE_URL=https://your-project-id.supabase.co/
+SUPABASE_ANON_KEY=your-anon-key-here

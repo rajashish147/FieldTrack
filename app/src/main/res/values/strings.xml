@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FieldTrack</string>
+    <string name="login">Login</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="full_name">Full Name</string>
+    <string name="check_in">Check In</string>
+    <string name="check_out">Check Out</string>
+    <string name="sync_data">Sync Data</string>
+    <string name="logout">Logout</string>
+    <string name="home">Home</string>
+    <string name="map">Map</string>
+    <string name="reports">Reports</string>
+    <string name="expenses">Expenses</string>
+    <string name="submit">Submit</string>
+    <string name="cancel">Cancel</string>
+    <string name="add_report">Add Report</string>
+    <string name="add_expense">Add Expense</string>
+    <string name="no_data">No data available</string>
+    <string name="tracking_active">Location tracking is active</string>
+    <string name="tracking_notification_title">FieldTrack</string>
+</resources>

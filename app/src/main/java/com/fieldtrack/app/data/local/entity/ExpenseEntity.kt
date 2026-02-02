@@ -1,0 +1,43 @@
+package com.fieldtrack.app.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import com.fieldtrack.app.data.model.Expense
+import java.util.UUID
+
+@Entity(tableName = "expenses")
+data class ExpenseEntity(
+    @PrimaryKey
+    val id: String = UUID.randomUUID().toString(),
+    val userId: String,
+    val amount: Double,
+    val category: String,
+    val billImageUrl: String,
+    val status: String,
+    val timestamp: String,
+    val isSynced: Boolean = false
+) {
+    fun toModel(): Expense = Expense(
+        id = id,
+        userId = userId,
+        amount = amount,
+        category = category,
+        billImageUrl = billImageUrl,
+        status = status,
+        timestamp = timestamp
+    )
+
+    companion object {
+        fun fromModel(model: Expense, synced: Boolean = false): ExpenseEntity =
+            ExpenseEntity(
+                id = model.id,
+                userId = model.userId,
+                amount = model.amount,
+                category = model.category,
+                billImageUrl = model.billImageUrl,
+                status = model.status,
+                timestamp = model.timestamp,
+                isSynced = synced
+            )
+    }
+}
