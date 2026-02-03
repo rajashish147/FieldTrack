@@ -8,7 +8,6 @@ import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.databinding.ActivityLoginBinding
 import com.fieldtrack.app.ui.admin.AdminActivity
 import com.fieldtrack.app.ui.dashboard.DashboardActivity
-import com.fieldtrack.app.util.Constants
 import com.fieldtrack.app.util.showToast
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
@@ -23,7 +22,11 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         if (viewModel.isLoggedIn()) {
-            navigateToHome()
+            binding = ActivityLoginBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            setLoadingState(true)
+            viewModel.validateSession()
+            observeSessionValidation()
             return
         }
 
@@ -34,21 +37,45 @@ class LoginActivity : AppCompatActivity() {
         observeViewModel()
     }
 
+    private fun observeSessionValidation() {
+        viewModel.sessionValid.observe(this) { valid ->
+            if (valid == true) {
+                navigateToHome()
+            } else {
+                setLoadingState(false)
+                setupUI()
+                observeViewModel()
+            }
+        }
+    }
+
     private fun setupUI() {
         binding.btnLogin.setOnClickListener {
+            clearErrors()
             val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
 
             if (isLoginMode) {
-                viewModel.login(email, password)
+                val validation = viewModel.validateLogin(email, password)
+                if (validation.isValid) {
+                    viewModel.login(email, password)
+                } else {
+                    showFieldErrors(validation)
+                }
             } else {
                 val name = binding.etName.text.toString().trim()
-                viewModel.signUp(email, password, name)
+                val validation = viewModel.validateSignUp(email, password, name)
+                if (validation.isValid) {
+                    viewModel.signUp(email, password, name)
+                } else {
+                    showFieldErrors(validation)
+                }
             }
         }
 
         binding.tvToggleMode.setOnClickListener {
             isLoginMode = !isLoginMode
+            clearErrors()
             updateUIMode()
         }
     }
@@ -67,21 +94,37 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    private fun showFieldErrors(validation: LoginViewModel.ValidationResult) {
+        binding.tilEmail.error = validation.emailError
+        binding.tilPassword.error = validation.passwordError
+        binding.tilName.error = validation.nameError
+    }
+
+    private fun clearErrors() {
+        binding.tilEmail.error = null
+        binding.tilPassword.error = null
+        binding.tilName.error = null
+    }
+
+    private fun setLoadingState(loading: Boolean) {
+        binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        binding.btnLogin.isEnabled = !loading
+        binding.etEmail.isEnabled = !loading
+        binding.etPassword.isEnabled = !loading
+        binding.etName.isEnabled = !loading
+        binding.tvToggleMode.isEnabled = !loading
+    }
+
     private fun observeViewModel() {
         viewModel.loginResult.observe(this) { result ->
             when (result) {
-                is NetworkResult.Loading -> {
-                    binding.progressBar.visibility = View.VISIBLE
-                    binding.btnLogin.isEnabled = false
-                }
+                is NetworkResult.Loading -> setLoadingState(true)
                 is NetworkResult.Success -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.btnLogin.isEnabled = true
+                    setLoadingState(false)
                     navigateToHome()
                 }
                 is NetworkResult.Error -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.btnLogin.isEnabled = true
+                    setLoadingState(false)
                     showToast(result.message)
                 }
             }
@@ -89,18 +132,13 @@ class LoginActivity : AppCompatActivity() {
 
         viewModel.signUpResult.observe(this) { result ->
             when (result) {
-                is NetworkResult.Loading -> {
-                    binding.progressBar.visibility = View.VISIBLE
-                    binding.btnLogin.isEnabled = false
-                }
+                is NetworkResult.Loading -> setLoadingState(true)
                 is NetworkResult.Success -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.btnLogin.isEnabled = true
+                    setLoadingState(false)
                     navigateToHome()
                 }
                 is NetworkResult.Error -> {
-                    binding.progressBar.visibility = View.GONE
-                    binding.btnLogin.isEnabled = true
+                    setLoadingState(false)
                     showToast(result.message)
                 }
             }

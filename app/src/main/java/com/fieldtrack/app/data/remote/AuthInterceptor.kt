@@ -8,10 +8,15 @@ class AuthInterceptor(private val sessionManager: SessionManager) : Interceptor 
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+        val url = originalRequest.url.toString()
 
         val requestBuilder = originalRequest.newBuilder()
             .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
             .header("Content-Type", "application/json")
+
+        if (url.contains("/rest/v1/")) {
+            requestBuilder.header("Prefer", "return=representation")
+        }
 
         val token = sessionManager.accessToken
         if (token != null) {

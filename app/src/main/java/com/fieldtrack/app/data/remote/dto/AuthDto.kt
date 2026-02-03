@@ -13,7 +13,9 @@ data class SignUpRequest(
     @SerializedName("email")
     val email: String,
     @SerializedName("password")
-    val password: String
+    val password: String,
+    @SerializedName("data")
+    val data: Map<String, String>? = null
 )
 
 data class AuthResponse(
@@ -40,3 +42,22 @@ data class RefreshTokenRequest(
     @SerializedName("refresh_token")
     val refreshToken: String
 )
+
+data class SupabaseError(
+    @SerializedName("error")
+    val error: String?,
+    @SerializedName("error_description")
+    val errorDescription: String?,
+    @SerializedName("msg")
+    val msg: String?,
+    @SerializedName("message")
+    val message: String?
+) {
+    fun readableMessage(): String {
+        return errorDescription
+            ?: message
+            ?: msg
+            ?: error
+            ?: "An unknown error occurred"
+    }
+}

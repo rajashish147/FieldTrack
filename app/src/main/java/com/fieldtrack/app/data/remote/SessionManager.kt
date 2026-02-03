@@ -44,6 +44,14 @@ class SessionManager(context: Context) {
         get() = prefs.getBoolean(Constants.PREF_IS_CHECKED_IN, false)
         set(value) = prefs.edit().putBoolean(Constants.PREF_IS_CHECKED_IN, value).apply()
 
+    var checkInTime: Long
+        get() = prefs.getLong(Constants.PREF_CHECK_IN_TIME, 0L)
+        set(value) = prefs.edit().putLong(Constants.PREF_CHECK_IN_TIME, value).apply()
+
+    var lastCheckOutTime: Long
+        get() = prefs.getLong(Constants.PREF_LAST_CHECK_OUT_TIME, 0L)
+        set(value) = prefs.edit().putLong(Constants.PREF_LAST_CHECK_OUT_TIME, value).apply()
+
     val isLoggedIn: Boolean
         get() = accessToken != null && userId != null
 
