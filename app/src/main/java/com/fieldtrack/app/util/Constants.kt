@@ -11,6 +11,10 @@ object Constants {
     const val LOCATION_INTERVAL_MS = 2 * 60 * 1000L       // 2 minutes
     const val LOCATION_MAX_INTERVAL_MS = 5 * 60 * 1000L   // 5 minutes
     const val LOCATION_MIN_DISPLACEMENT_M = 10f            // 10 meters
+    const val LOCATION_ACCURACY_THRESHOLD_M = 50f          // ignore fixes worse than 50m
+    const val LOCATION_SYNC_BATCH_SIZE = 5                 // sync after every N locations
+    const val LOCATION_CLEANUP_AGE_DAYS = 7                // delete synced data older than 7 days
+    const val SYNC_PERIODIC_INTERVAL_MIN = 15L             // WorkManager periodic sync interval
 
     // Supabase Tables
     const val TABLE_USERS = "users"
@@ -26,6 +30,8 @@ object Constants {
     const val PREF_USER_ROLE = "user_role"
     const val PREF_USER_NAME = "user_name"
     const val PREF_IS_CHECKED_IN = "is_checked_in"
+    const val PREF_CHECK_IN_TIME = "check_in_time"
+    const val PREF_LAST_CHECK_OUT_TIME = "last_check_out_time"
 
     // Intent Extras
     const val EXTRA_USER_ID = "extra_user_id"

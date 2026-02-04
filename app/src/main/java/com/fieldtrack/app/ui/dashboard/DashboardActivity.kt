@@ -11,16 +11,20 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.fieldtrack.app.R
+import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.databinding.ActivityDashboardBinding
+import com.fieldtrack.app.service.LocationTrackingService
 import com.fieldtrack.app.ui.auth.LoginActivity
 import com.fieldtrack.app.util.LocationUtils
 import com.fieldtrack.app.util.showToast
+import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDashboardBinding
     val viewModel: DashboardViewModel by viewModel()
+    private val sessionManager: SessionManager by inject()
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -39,6 +43,8 @@ class DashboardActivity : AppCompatActivity() {
         if (!granted) {
             showToast("Background location helps track accurately during work hours")
         }
+        // After background location result, request notification permission
+        requestNotificationPermissionIfNeeded()
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -58,6 +64,11 @@ class DashboardActivity : AppCompatActivity() {
         requestPermissions()
     }
 
+    override fun onResume() {
+        super.onResume()
+        ensureServiceRunningIfCheckedIn()
+    }
+
     private fun setupNavigation() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -73,8 +84,24 @@ class DashboardActivity : AppCompatActivity() {
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 )
             )
+        } else {
+            // Already have foreground location, check background
+            requestBackgroundLocationIfNeeded()
         }
+    }
 
+    private fun requestBackgroundLocationIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            !LocationUtils.hasBackgroundLocationPermission(this)
+        ) {
+            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            // Already have background location or not needed, check notification
+            requestNotificationPermissionIfNeeded()
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     this, Manifest.permission.POST_NOTIFICATIONS
@@ -85,11 +112,12 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestBackgroundLocationIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            !LocationUtils.hasBackgroundLocationPermission(this)
-        ) {
-            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    private fun ensureServiceRunningIfCheckedIn() {
+        if (sessionManager.isCheckedIn && LocationUtils.hasLocationPermission(this)) {
+            val intent = Intent(this, LocationTrackingService::class.java).apply {
+                action = LocationTrackingService.ACTION_START
+            }
+            startForegroundService(intent)
         }
     }
 
