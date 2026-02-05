@@ -91,4 +91,10 @@ class LocationRepository(
     suspend fun getUnsyncedCount(): Int = withContext(Dispatchers.IO) {
         locationDao.getUnsyncedCount()
     }
+
+    suspend fun cleanupOldSyncedLocations(beforeTimestamp: String) {
+        withContext(Dispatchers.IO) {
+            locationDao.deleteOldSyncedLocations(beforeTimestamp)
+        }
+    }
 }

@@ -19,6 +19,9 @@
     <!-- Wake Lock for location service -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Boot completed to restart tracking after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Storage for OSMDroid tile cache and bill images -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -71,6 +74,15 @@
             android:name=".service.LocationTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Boot Receiver to restart tracking after reboot -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Location Sync Worker -->
         <provider

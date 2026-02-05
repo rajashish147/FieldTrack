@@ -94,7 +94,6 @@ dependencies {
 
     // Koin (Dependency Injection - Open Source)
     implementation 'io.insert-koin:koin-android:3.5.3'
-    implementation 'io.insert-koin:koin-androidx-viewmodel:3.5.3' // Deprecated but stable
 
     // Image Loading
     implementation 'io.coil-kt:coil:2.5.0'
