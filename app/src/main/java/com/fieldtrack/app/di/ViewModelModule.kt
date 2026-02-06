@@ -14,7 +14,7 @@ val viewModelModule = module {
     viewModel { LoginViewModel(get()) }
     viewModel { DashboardViewModel(get(), get(), get(), get()) }
     viewModel { MapViewModel(get()) }
-    viewModel { ReportViewModel(get(), get()) }
+    viewModel { ReportViewModel(get(), get(), get()) }
     viewModel { ExpenseViewModel(get(), get()) }
     viewModel { AdminViewModel(get(), get(), get(), get()) }
 }

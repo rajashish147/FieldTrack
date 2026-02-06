@@ -72,6 +72,11 @@ class ReportRepository(
             }
         }
 
+    suspend fun hasReportForToday(userId: String, date: String): Boolean =
+        withContext(Dispatchers.IO) {
+            reportDao.getReportByUserAndDate(userId, date) != null
+        }
+
     suspend fun fetchAllReports(): NetworkResult<List<Report>> =
         withContext(Dispatchers.IO) {
             try {

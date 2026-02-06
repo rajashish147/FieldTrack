@@ -28,4 +28,7 @@ interface ReportDao {
 
     @Query("UPDATE reports SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<String>)
+
+    @Query("SELECT * FROM reports WHERE userId = :userId AND date = :date LIMIT 1")
+    suspend fun getReportByUserAndDate(userId: String, date: String): ReportEntity?
 }
