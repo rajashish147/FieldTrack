@@ -34,4 +34,34 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_attach_bill"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Attach Bill Image"
+        android:drawableStart="@drawable/ic_camera"
+        android:drawablePadding="8dp" />
+
+    <ImageView
+        android:id="@+id/iv_bill_preview"
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:layout_marginTop="8dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:contentDescription="Bill preview"
+        android:background="@drawable/bg_image_placeholder" />
+
+    <TextView
+        android:id="@+id/tv_remove_bill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Remove image"
+        android:textColor="@color/status_rejected"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
 </LinearLayout>

@@ -1,17 +1,24 @@
 package com.fieldtrack.app.ui.expense
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import coil.load
 import com.fieldtrack.app.R
 import com.fieldtrack.app.databinding.FragmentExpenseBinding
 import com.fieldtrack.app.util.Constants
+import com.fieldtrack.app.util.showSnackbar
 import com.fieldtrack.app.util.showToast
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -23,6 +30,25 @@ class ExpenseFragment : Fragment() {
 
     private val viewModel: ExpenseViewModel by viewModel()
     private lateinit var expenseAdapter: ExpenseAdapter
+
+    private var selectedBillUri: Uri? = null
+    private var dialogBillPreview: ImageView? = null
+    private var dialogRemoveText: TextView? = null
+    private var dialogAttachButton: MaterialButton? = null
+
+    private val billPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedBillUri = it
+            dialogBillPreview?.let { iv ->
+                iv.visibility = View.VISIBLE
+                iv.load(it) { crossfade(true) }
+            }
+            dialogRemoveText?.visibility = View.VISIBLE
+            dialogAttachButton?.text = "Change Image"
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,9 +82,17 @@ class ExpenseFragment : Fragment() {
     }
 
     private fun showAddExpenseDialog() {
+        selectedBillUri = null
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_expense, null)
         val etAmount = dialogView.findViewById<TextInputEditText>(R.id.et_amount)
         val actvCategory = dialogView.findViewById<AutoCompleteTextView>(R.id.actv_category)
+        val btnAttach = dialogView.findViewById<MaterialButton>(R.id.btn_attach_bill)
+        val ivPreview = dialogView.findViewById<ImageView>(R.id.iv_bill_preview)
+        val tvRemove = dialogView.findViewById<TextView>(R.id.tv_remove_bill)
+
+        dialogBillPreview = ivPreview
+        dialogRemoveText = tvRemove
+        dialogAttachButton = btnAttach
 
         val categoryAdapter = ArrayAdapter(
             requireContext(),
@@ -66,6 +100,17 @@ class ExpenseFragment : Fragment() {
             Constants.EXPENSE_CATEGORIES
         )
         actvCategory.setAdapter(categoryAdapter)
+
+        btnAttach.setOnClickListener {
+            billPickerLauncher.launch("image/*")
+        }
+
+        tvRemove.setOnClickListener {
+            selectedBillUri = null
+            ivPreview.visibility = View.GONE
+            tvRemove.visibility = View.GONE
+            btnAttach.text = "Attach Bill Image"
+        }
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Submit Expense")
@@ -85,7 +130,7 @@ class ExpenseFragment : Fragment() {
                     return@setPositiveButton
                 }
 
-                viewModel.submitExpense(amount, category, "")
+                viewModel.submitExpense(requireContext(), amount, category, selectedBillUri)
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -98,14 +143,33 @@ class ExpenseFragment : Fragment() {
         }
 
         viewModel.submitResult.observe(viewLifecycleOwner) { success ->
-            if (success) {
-                requireContext().showToast("Expense submitted")
+            success?.let {
+                if (it) {
+                    requireContext().showToast("Expense submitted")
+                } else {
+                    requireContext().showToast("Failed to submit expense")
+                }
+                viewModel.clearSubmitResult()
+            }
+        }
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.fabAddExpense.isEnabled = !loading
+        }
+
+        viewModel.error.observe(viewLifecycleOwner) { errorMsg ->
+            errorMsg?.let {
+                binding.root.showSnackbar(it)
+                viewModel.clearError()
             }
         }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        dialogBillPreview = null
+        dialogRemoveText = null
+        dialogAttachButton = null
         _binding = null
     }
 }

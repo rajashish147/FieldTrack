@@ -1,11 +1,13 @@
 package com.fieldtrack.app.ui.expense
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.model.Expense
 import com.fieldtrack.app.databinding.ItemExpenseBinding
@@ -44,6 +46,15 @@ class ExpenseAdapter : ListAdapter<Expense, ExpenseAdapter.ExpenseViewHolder>(Ex
             binding.tvStatus.setTextColor(
                 ContextCompat.getColor(binding.root.context, statusColor)
             )
+
+            if (expense.billImageUrl.isNotBlank()) {
+                binding.ivBillImage.visibility = View.VISIBLE
+                binding.ivBillImage.load(expense.billImageUrl) {
+                    crossfade(true)
+                }
+            } else {
+                binding.ivBillImage.visibility = View.GONE
+            }
         }
     }
 
