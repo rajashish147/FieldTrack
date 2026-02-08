@@ -25,6 +25,9 @@ class AdminViewModel(
     private val _employees = MutableLiveData<List<User>>()
     val employees: LiveData<List<User>> = _employees
 
+    private val _employeeNames = MutableLiveData<Map<String, String>>()
+    val employeeNames: LiveData<Map<String, String>> = _employeeNames
+
     private val _allReports = MutableLiveData<List<Report>>()
     val allReports: LiveData<List<Report>> = _allReports
 
@@ -37,13 +40,18 @@ class AdminViewModel(
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
+    private val _statusUpdateResult = MutableLiveData<String?>()
+    val statusUpdateResult: LiveData<String?> = _statusUpdateResult
+
     fun loadEmployees() {
         _isLoading.value = true
         viewModelScope.launch {
             try {
                 val response = userApi.getUsersByRole(role = "eq.${Constants.ROLE_EMPLOYEE}")
                 if (response.isSuccessful && response.body() != null) {
-                    _employees.value = response.body()!!.map { it.toModel() }
+                    val users = response.body()!!.map { it.toModel() }
+                    _employees.value = users
+                    _employeeNames.value = users.associate { it.id to it.name }
                 } else {
                     _error.value = "Failed to load employees"
                 }
@@ -55,36 +63,62 @@ class AdminViewModel(
     }
 
     fun loadAllReports() {
+        _isLoading.value = true
         viewModelScope.launch {
             when (val result = reportRepository.fetchAllReports()) {
                 is NetworkResult.Success -> _allReports.value = result.data
                 is NetworkResult.Error -> _error.value = result.message
                 is NetworkResult.Loading -> { }
             }
+            _isLoading.value = false
         }
     }
 
     fun loadAllExpenses() {
+        _isLoading.value = true
         viewModelScope.launch {
             when (val result = expenseRepository.fetchAllExpenses()) {
                 is NetworkResult.Success -> _allExpenses.value = result.data
                 is NetworkResult.Error -> _error.value = result.message
                 is NetworkResult.Loading -> { }
             }
+            _isLoading.value = false
         }
     }
 
     fun approveExpense(expenseId: String) {
+        _isLoading.value = true
         viewModelScope.launch {
-            expenseRepository.updateExpenseStatus(expenseId, Constants.EXPENSE_STATUS_APPROVED)
-            loadAllExpenses()
+            when (val result = expenseRepository.updateExpenseStatus(expenseId, Constants.EXPENSE_STATUS_APPROVED)) {
+                is NetworkResult.Success -> {
+                    _statusUpdateResult.value = "Expense approved"
+                    loadAllExpenses()
+                }
+                is NetworkResult.Error -> _error.value = result.message
+                is NetworkResult.Loading -> { }
+            }
         }
     }
 
     fun rejectExpense(expenseId: String) {
+        _isLoading.value = true
         viewModelScope.launch {
-            expenseRepository.updateExpenseStatus(expenseId, Constants.EXPENSE_STATUS_REJECTED)
-            loadAllExpenses()
+            when (val result = expenseRepository.updateExpenseStatus(expenseId, Constants.EXPENSE_STATUS_REJECTED)) {
+                is NetworkResult.Success -> {
+                    _statusUpdateResult.value = "Expense rejected"
+                    loadAllExpenses()
+                }
+                is NetworkResult.Error -> _error.value = result.message
+                is NetworkResult.Loading -> { }
+            }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    fun clearStatusUpdateResult() {
+        _statusUpdateResult.value = null
     }
 }
