@@ -22,6 +22,4 @@
     <string name="tracking_active">Location tracking is active</string>
     <string name="tracking_notification_title">FieldTrack</string>
 
-    <!-- Google Maps API Key - Replace with your actual key -->
-    <string name="google_maps_key">YOUR_API_KEY_HERE</string>
 </resources>

@@ -69,10 +69,10 @@
             android:exported="false"
             android:theme="@style/Theme.FieldTrack.NoActionBar" />
 
-        <!-- Google Maps API Key -->
+        <!-- Google Maps API Key (injected from local.properties via manifestPlaceholders) -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
+            android:value="${googleMapsKey}" />
 
         <!-- Location Tracking Foreground Service -->
         <service
