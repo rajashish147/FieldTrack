@@ -13,7 +13,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
-import org.osmdroid.config.Configuration
 
 class FieldTrackApp : Application() {
 
@@ -22,7 +21,6 @@ class FieldTrackApp : Application() {
 
         initKoin()
         createNotificationChannels()
-        configureOsmDroid()
     }
 
     private fun initKoin() {
@@ -61,12 +59,5 @@ class FieldTrackApp : Application() {
             notificationManager.createNotificationChannel(locationChannel)
             notificationManager.createNotificationChannel(generalChannel)
         }
-    }
-
-    private fun configureOsmDroid() {
-        val osmConfig = Configuration.getInstance()
-        osmConfig.userAgentValue = packageName
-        osmConfig.osmdroidBasePath = cacheDir
-        osmConfig.osmdroidTileCache = cacheDir.resolve("tiles")
     }
 }

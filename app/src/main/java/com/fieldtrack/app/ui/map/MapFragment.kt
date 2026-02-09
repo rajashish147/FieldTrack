@@ -6,15 +6,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.fieldtrack.app.databinding.FragmentMapBinding
+import com.fieldtrack.app.R
+import com.fieldtrack.app.data.model.Location
 import com.fieldtrack.app.data.remote.SessionManager
+import com.fieldtrack.app.databinding.FragmentMapBinding
 import com.fieldtrack.app.util.currentDateString
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polyline
 
 class MapFragment : Fragment() {
 
@@ -23,6 +28,8 @@ class MapFragment : Fragment() {
 
     private val viewModel: MapViewModel by viewModel()
     private val sessionManager: SessionManager by inject()
+
+    private var googleMap: GoogleMap? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,13 +44,17 @@ class MapFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupMap()
         observeViewModel()
-        loadTodayLocations()
     }
 
     private fun setupMap() {
-        binding.mapView.setTileSource(TileSourceFactory.MAPNIK)
-        binding.mapView.setMultiTouchControls(true)
-        binding.mapView.controller.setZoom(15.0)
+        val mapFragment = childFragmentManager
+            .findFragmentById(R.id.map_container) as? SupportMapFragment
+        mapFragment?.getMapAsync { map ->
+            googleMap = map
+            map.uiSettings.isZoomControlsEnabled = true
+            map.uiSettings.isMyLocationButtonEnabled = false
+            loadTodayLocations()
+        }
     }
 
     private fun loadTodayLocations() {
@@ -53,61 +64,54 @@ class MapFragment : Fragment() {
 
     private fun observeViewModel() {
         viewModel.locations.observe(viewLifecycleOwner) { locations ->
-            binding.mapView.overlays.clear()
-
-            if (locations.isEmpty()) {
-                binding.tvNoLocations.visibility = View.VISIBLE
-                return@observe
-            }
-
-            binding.tvNoLocations.visibility = View.GONE
-
-            val geoPoints = locations.map { GeoPoint(it.latitude, it.longitude) }
-
-            if (geoPoints.size > 1) {
-                val polyline = Polyline().apply {
-                    setPoints(geoPoints)
-                    outlinePaint.color = Color.BLUE
-                    outlinePaint.strokeWidth = 5f
-                }
-                binding.mapView.overlays.add(polyline)
-            }
-
-            geoPoints.firstOrNull()?.let { startPoint ->
-                val startMarker = Marker(binding.mapView).apply {
-                    position = startPoint
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "Start"
-                }
-                binding.mapView.overlays.add(startMarker)
-            }
-
-            geoPoints.lastOrNull()?.let { endPoint ->
-                val endMarker = Marker(binding.mapView).apply {
-                    position = endPoint
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    title = "Current"
-                }
-                binding.mapView.overlays.add(endMarker)
-                binding.mapView.controller.setCenter(endPoint)
-            }
-
-            binding.mapView.invalidate()
+            val map = googleMap ?: return@observe
+            drawLocationsOnMap(map, locations)
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        binding.mapView.onResume()
-    }
+    private fun drawLocationsOnMap(map: GoogleMap, locations: List<Location>) {
+        map.clear()
 
-    override fun onPause() {
-        super.onPause()
-        binding.mapView.onPause()
+        if (locations.isEmpty()) {
+            binding.tvNoLocations.visibility = View.VISIBLE
+            return
+        }
+
+        binding.tvNoLocations.visibility = View.GONE
+
+        val latLngs = locations.map { LatLng(it.latitude, it.longitude) }
+
+        if (latLngs.size > 1) {
+            val polylineOptions = PolylineOptions()
+                .addAll(latLngs)
+                .color(Color.BLUE)
+                .width(5f)
+            map.addPolyline(polylineOptions)
+        }
+
+        latLngs.firstOrNull()?.let { startPoint ->
+            map.addMarker(
+                MarkerOptions()
+                    .position(startPoint)
+                    .title("Start")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+            )
+        }
+
+        latLngs.lastOrNull()?.let { endPoint ->
+            map.addMarker(
+                MarkerOptions()
+                    .position(endPoint)
+                    .title("Current")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+            )
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(endPoint, 15f))
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        googleMap = null
         _binding = null
     }
 }

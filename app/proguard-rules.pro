@@ -28,9 +28,9 @@
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**
 
-# OSMDroid
--keep class org.osmdroid.** { *; }
--dontwarn org.osmdroid.**
+# Google Maps
+-keep class com.google.android.gms.maps.** { *; }
+-dontwarn com.google.android.gms.maps.**
 
 # Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}

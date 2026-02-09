@@ -22,7 +22,7 @@
     <!-- Boot completed to restart tracking after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
-    <!-- Storage for OSMDroid tile cache and bill images -->
+    <!-- Storage for bill images -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -68,6 +68,11 @@
             android:name=".ui.admin.AdminActivity"
             android:exported="false"
             android:theme="@style/Theme.FieldTrack.NoActionBar" />
+
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
 
         <!-- Location Tracking Foreground Service -->
         <service
