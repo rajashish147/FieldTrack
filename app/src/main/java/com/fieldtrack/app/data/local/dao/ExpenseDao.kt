@@ -31,4 +31,7 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE userId = :userId AND status = :status ORDER BY timestamp DESC")
     fun getExpensesByStatus(userId: String, status: String): Flow<List<ExpenseEntity>>
+
+    @Query("DELETE FROM expenses")
+    suspend fun deleteAll()
 }

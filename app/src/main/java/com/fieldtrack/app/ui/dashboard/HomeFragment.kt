@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment
 import com.fieldtrack.app.R
 import com.fieldtrack.app.databinding.FragmentHomeBinding
 import com.fieldtrack.app.util.LocationUtils
+import com.fieldtrack.app.util.SecurityUtils
 import com.fieldtrack.app.util.showSnackbar
 import com.fieldtrack.app.util.showToast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -43,6 +44,10 @@ class HomeFragment : Fragment() {
 
     private fun setupUI() {
         binding.btnCheckInOut.setOnClickListener {
+            if (SecurityUtils.isRateLimited("check_in_out")) {
+                requireContext().showToast("Please wait a few seconds before trying again")
+                return@setOnClickListener
+            }
             val isCheckedIn = viewModel.isCheckedIn.value ?: false
             if (isCheckedIn) {
                 showCheckOutConfirmation()

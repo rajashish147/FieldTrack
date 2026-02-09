@@ -18,6 +18,7 @@ import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.ui.dashboard.DashboardActivity
 import com.fieldtrack.app.util.Constants
 import com.fieldtrack.app.util.LocationUtils
+import com.fieldtrack.app.util.SecurityUtils
 import com.fieldtrack.app.util.currentIso8601
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -54,6 +55,9 @@ class LocationTrackingService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var unsyncedBatchCount = 0
     private var isTracking = false
+    private var lastLat: Double? = null
+    private var lastLon: Double? = null
+    private var lastTimestamp: Long = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -160,6 +164,22 @@ class LocationTrackingService : Service() {
                         Log.w(TAG, "Location accuracy ${androidLocation.accuracy}m exceeds threshold, skipping")
                         return
                     }
+
+                    // Velocity check: reject teleportation
+                    val now = System.currentTimeMillis()
+                    if (lastLat != null && lastLon != null && lastTimestamp > 0L) {
+                        if (!SecurityUtils.isVelocityReasonable(
+                                lastLat!!, lastLon!!, lastTimestamp,
+                                androidLocation.latitude, androidLocation.longitude, now
+                            )
+                        ) {
+                            Log.w(TAG, "Unreasonable velocity detected, skipping location")
+                            return
+                        }
+                    }
+                    lastLat = androidLocation.latitude
+                    lastLon = androidLocation.longitude
+                    lastTimestamp = now
 
                     val userId = sessionManager.userId ?: return
 

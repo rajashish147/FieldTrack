@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.UserApi
 import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
+import com.fieldtrack.app.data.local.AppDatabase
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.service.LocationSyncWorker
@@ -21,7 +22,8 @@ class DashboardViewModel(
     private val authRepository: AuthRepository,
     private val locationRepository: LocationRepository,
     private val sessionManager: SessionManager,
-    private val userApi: UserApi
+    private val userApi: UserApi,
+    private val appDatabase: AppDatabase
 ) : ViewModel() {
 
     private val _isCheckedIn = MutableLiveData<Boolean>()
@@ -137,6 +139,10 @@ class DashboardViewModel(
         }
         stopDurationTimer()
         viewModelScope.launch {
+            // Clear all local data for privacy
+            appDatabase.locationDao().deleteAll()
+            appDatabase.reportDao().deleteAll()
+            appDatabase.expenseDao().deleteAll()
             authRepository.logout()
         }
     }

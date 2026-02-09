@@ -33,4 +33,7 @@ interface LocationDao {
 
     @Query("SELECT COUNT(*) FROM locations WHERE isSynced = 0")
     suspend fun getUnsyncedCount(): Int
+
+    @Query("DELETE FROM locations")
+    suspend fun deleteAll()
 }

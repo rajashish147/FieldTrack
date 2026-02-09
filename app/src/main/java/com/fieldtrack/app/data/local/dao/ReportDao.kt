@@ -31,4 +31,7 @@ interface ReportDao {
 
     @Query("SELECT * FROM reports WHERE userId = :userId AND date = :date LIMIT 1")
     suspend fun getReportByUserAndDate(userId: String, date: String): ReportEntity?
+
+    @Query("DELETE FROM reports")
+    suspend fun deleteAll()
 }

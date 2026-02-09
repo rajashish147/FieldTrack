@@ -8,6 +8,7 @@ import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.databinding.ActivityLoginBinding
 import com.fieldtrack.app.ui.admin.AdminActivity
 import com.fieldtrack.app.ui.dashboard.DashboardActivity
+import com.fieldtrack.app.util.SecurityUtils
 import com.fieldtrack.app.util.showToast
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
@@ -52,7 +53,7 @@ class LoginActivity : AppCompatActivity() {
     private fun setupUI() {
         binding.btnLogin.setOnClickListener {
             clearErrors()
-            val email = binding.etEmail.text.toString().trim()
+            val email = SecurityUtils.sanitizeInput(binding.etEmail.text.toString())
             val password = binding.etPassword.text.toString().trim()
 
             if (isLoginMode) {
@@ -63,7 +64,7 @@ class LoginActivity : AppCompatActivity() {
                     showFieldErrors(validation)
                 }
             } else {
-                val name = binding.etName.text.toString().trim()
+                val name = SecurityUtils.sanitizeInput(binding.etName.text.toString())
                 val validation = viewModel.validateSignUp(email, password, name)
                 if (validation.isValid) {
                     viewModel.signUp(email, password, name)

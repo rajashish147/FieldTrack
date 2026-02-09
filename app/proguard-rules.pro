@@ -35,3 +35,18 @@
 # Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# Coil
+-dontwarn coil.**
+-keep class coil.** { *; }
+
+# Koin
+-keepnames class org.koin.** { *; }
+-keep class org.koin.core.** { *; }
+-dontwarn org.koin.**
+
+# Security - keep EncryptedSharedPreferences
+-keep class androidx.security.crypto.** { *; }
+
+# Prevent R8 from stripping data classes used in serialization
+-keep class com.fieldtrack.app.data.local.entity.** { *; }
