@@ -7,12 +7,12 @@ object Constants {
     const val NOTIFICATION_CHANNEL_GENERAL = "general_channel"
     const val NOTIFICATION_ID_LOCATION = 1001
 
-    // Location Tracking
-    const val LOCATION_INTERVAL_MS = 2 * 60 * 1000L       // 2 minutes
-    const val LOCATION_MAX_INTERVAL_MS = 5 * 60 * 1000L   // 5 minutes
-    const val LOCATION_MIN_DISPLACEMENT_M = 10f            // 10 meters
-    const val LOCATION_ACCURACY_THRESHOLD_M = 50f          // ignore fixes worse than 50m
-    const val LOCATION_SYNC_BATCH_SIZE = 5                 // sync after every N locations
+    // Location Tracking (TEMPORARILY LOWERED FOR TESTING — revert before production)
+    const val LOCATION_INTERVAL_MS = 30 * 1000L              // 30 seconds
+    const val LOCATION_MAX_INTERVAL_MS = 60 * 1000L           // 1 minute
+    const val LOCATION_MIN_DISPLACEMENT_M = 0f                // fire on any movement
+    const val LOCATION_ACCURACY_THRESHOLD_M = 100f            // accept indoor GPS
+    const val LOCATION_SYNC_BATCH_SIZE = 2                    // sync after every 2 locations
     const val LOCATION_CLEANUP_AGE_DAYS = 7                // delete synced data older than 7 days
     const val SYNC_PERIODIC_INTERVAL_MIN = 15L             // WorkManager periodic sync interval
 
