@@ -3,6 +3,7 @@ package com.fieldtrack.app.di
 import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.data.remote.AuthInterceptor
 import com.fieldtrack.app.data.remote.TokenAuthenticator
+import com.fieldtrack.app.util.ConfigValidator
 import com.fieldtrack.app.data.remote.api.AuthApi
 import com.fieldtrack.app.data.remote.api.ExpenseApi
 import com.fieldtrack.app.data.remote.api.LocationApi
@@ -43,13 +44,19 @@ val networkModule = module {
             .build()
     }
 
+    // If SUPABASE_URL is missing, use a safe placeholder so the app doesn't crash on startup.
+    // Actual API calls will fail gracefully with network errors instead of a fatal crash.
     single {
+        val baseUrl = BuildConfig.SUPABASE_URL.ifBlank { "https://placeholder.invalid/" }
         Retrofit.Builder()
-            .baseUrl(BuildConfig.SUPABASE_URL)
+            .baseUrl(baseUrl)
             .client(get())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
+
+    // Expose config validity so UI can check and show an error screen
+    single<ConfigValidator> { ConfigValidator() }
 
     single { get<Retrofit>().create(AuthApi::class.java) }
     single { get<Retrofit>().create(UserApi::class.java) }

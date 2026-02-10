@@ -3,6 +3,7 @@ package com.fieldtrack.app.di
 import com.fieldtrack.app.ui.admin.AdminViewModel
 import com.fieldtrack.app.ui.auth.LoginViewModel
 import com.fieldtrack.app.ui.dashboard.DashboardViewModel
+import com.fieldtrack.app.ui.employee.EmployeeHomeViewModel
 import com.fieldtrack.app.ui.expense.ExpenseViewModel
 import com.fieldtrack.app.ui.map.MapViewModel
 import com.fieldtrack.app.ui.report.ReportViewModel
@@ -13,8 +14,10 @@ val viewModelModule = module {
 
     viewModel { LoginViewModel(get()) }
     viewModel { DashboardViewModel(get(), get(), get(), get(), get()) }
+    viewModel { EmployeeHomeViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { MapViewModel(get()) }
     viewModel { ReportViewModel(get(), get(), get()) }
     viewModel { ExpenseViewModel(get(), get(), get()) }
-    viewModel { AdminViewModel(get(), get(), get(), get()) }
+    viewModel { AdminViewModel(get()) }
 }
+
