@@ -5,6 +5,12 @@ plugins {
     id 'kotlin-parcelize'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
 android {
     namespace 'com.fieldtrack.app'
     compileSdk 34
@@ -18,10 +24,10 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField "String", "SUPABASE_URL", "\"${project.findProperty('SUPABASE_URL') ?: ''}\""
-        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${project.findProperty('SUPABASE_ANON_KEY') ?: ''}\""
+        buildConfigField "String", "SUPABASE_URL", "\"${localProperties.getProperty('SUPABASE_URL', '')}\""
+        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty('SUPABASE_ANON_KEY', '')}\""
 
-        manifestPlaceholders["googleMapsKey"] = project.findProperty('GOOGLE_MAPS_API_KEY') ?: ''
+        manifestPlaceholders["googleMapsKey"] = localProperties.getProperty('GOOGLE_MAPS_API_KEY', '')
     }
 
     buildTypes {

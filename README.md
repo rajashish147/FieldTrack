@@ -11,7 +11,7 @@ Android MVP for tracking field employee GPS locations during work hours.
 - **Local DB:** Room
 - **Network:** Retrofit + OkHttp
 - **Backend:** Supabase (PostgreSQL + REST API + JWT Auth)
-- **Maps:** OSMDroid (OpenStreetMap)
+- **Maps:** Google Maps SDK
 - **Location:** Fused Location Provider (Foreground Service)
 
 ## Setup
