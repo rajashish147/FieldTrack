@@ -135,7 +135,7 @@ class LocationTrackingService : Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "FieldTrack::LocationTrackingWakeLock"
             ).apply {
-                acquire()
+                acquire(10 * 60 * 1000L) // 10 minute timeout as safety net
             }
         }
     }

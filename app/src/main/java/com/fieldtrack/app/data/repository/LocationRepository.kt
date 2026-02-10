@@ -4,8 +4,11 @@ import com.fieldtrack.app.data.local.dao.LocationDao
 import com.fieldtrack.app.data.local.entity.LocationEntity
 import com.fieldtrack.app.data.model.Location
 import com.fieldtrack.app.data.remote.NetworkResult
+import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.LocationApi
+import com.fieldtrack.app.data.remote.api.UserApi
 import com.fieldtrack.app.data.remote.dto.LocationDto
+import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -13,8 +16,30 @@ import kotlinx.coroutines.withContext
 
 class LocationRepository(
     private val locationDao: LocationDao,
-    private val locationApi: LocationApi
+    private val locationApi: LocationApi,
+    private val userApi: UserApi,
+    private val sessionManager: SessionManager
 ) {
+
+    /** Update the current user's check-in status on the server */
+    suspend fun updateCheckInStatus(isCheckedIn: Boolean): NetworkResult<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val userId = sessionManager.userId ?: return@withContext NetworkResult.Error("No user ID")
+                val response = userApi.updateCheckInStatus(
+                    id = "eq.$userId",
+                    body = UpdateCheckInDto(isCheckedIn = isCheckedIn)
+                )
+                if (response.isSuccessful) {
+                    NetworkResult.Success(Unit)
+                } else {
+                    NetworkResult.Error("Failed to update check-in status", response.code())
+                }
+            } catch (e: Exception) {
+                NetworkResult.Error(e.message ?: "Network error")
+            }
+        }
+
 
     suspend fun saveLocationLocally(location: Location) {
         withContext(Dispatchers.IO) {

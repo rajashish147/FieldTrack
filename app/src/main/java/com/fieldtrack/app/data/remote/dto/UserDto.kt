@@ -11,17 +11,28 @@ data class UserDto(
     @SerializedName("role")
     val role: String,
     @SerializedName("is_checked_in")
-    val isCheckedIn: Boolean
+    val isCheckedIn: Boolean,
+    @SerializedName("is_active")
+    val isActive: Boolean = false
 ) {
     fun toModel(): User = User(
         id = id,
         name = name,
         role = role,
-        isCheckedIn = isCheckedIn
+        isCheckedIn = isCheckedIn,
+        isActive = isActive
     )
 }
 
 data class UpdateCheckInDto(
     @SerializedName("is_checked_in")
     val isCheckedIn: Boolean
+)
+
+/** DTO for admin to update a user's activation or role status */
+data class UpdateUserStatusDto(
+    @SerializedName("is_active")
+    val isActive: Boolean? = null,
+    @SerializedName("role")
+    val role: String? = null
 )

@@ -60,7 +60,15 @@ class TokenAuthenticator(
                     response.body?.string(),
                     AuthResponse::class.java
                 )
-                sessionManager.refreshToken = authResponse.refreshToken
+                // Persist full session atomically — not just access token
+                if (authResponse.accessToken != null && authResponse.refreshToken != null) {
+                    sessionManager.saveSession(
+                        accessToken = authResponse.accessToken,
+                        refreshToken = authResponse.refreshToken,
+                        userId = sessionManager.userId ?: "",
+                        expiresIn = authResponse.expiresIn ?: 3600L
+                    )
+                }
                 authResponse.accessToken
             } else {
                 null

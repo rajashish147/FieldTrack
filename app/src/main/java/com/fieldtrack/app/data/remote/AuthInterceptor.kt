@@ -12,9 +12,14 @@ class AuthInterceptor(private val sessionManager: SessionManager) : Interceptor 
 
         val requestBuilder = originalRequest.newBuilder()
             .header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-            .header("Content-Type", "application/json")
 
-        if (url.contains("/rest/v1/")) {
+        // Don't override Content-Type for multipart uploads (storage endpoints)
+        if (!url.contains("/storage/v1/")) {
+            requestBuilder.header("Content-Type", "application/json")
+        }
+
+        // Only send Prefer header on write operations (POST/PATCH/PUT/DELETE)
+        if (url.contains("/rest/v1/") && originalRequest.method != "GET") {
             requestBuilder.header("Prefer", "return=representation")
         }
 

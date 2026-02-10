@@ -20,6 +20,17 @@ class SessionManager(context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
+    // Atomic save of all session tokens — single commit, no partial state
+    fun saveSession(accessToken: String, refreshToken: String, userId: String, expiresIn: Long) {
+        val expiresAt = System.currentTimeMillis() + (expiresIn * 1000)
+        prefs.edit()
+            .putString(Constants.PREF_ACCESS_TOKEN, accessToken)
+            .putString(Constants.PREF_REFRESH_TOKEN, refreshToken)
+            .putString(Constants.PREF_USER_ID, userId)
+            .putLong(Constants.PREF_EXPIRES_AT, expiresAt)
+            .apply()
+    }
+
     var accessToken: String?
         get() = prefs.getString(Constants.PREF_ACCESS_TOKEN, null)
         set(value) = prefs.edit().putString(Constants.PREF_ACCESS_TOKEN, value).apply()
@@ -31,6 +42,12 @@ class SessionManager(context: Context) {
     var userId: String?
         get() = prefs.getString(Constants.PREF_USER_ID, null)
         set(value) = prefs.edit().putString(Constants.PREF_USER_ID, value).apply()
+
+    val tokenExpiresAt: Long
+        get() = prefs.getLong(Constants.PREF_EXPIRES_AT, 0L)
+
+    val isTokenExpired: Boolean
+        get() = System.currentTimeMillis() >= tokenExpiresAt
 
     var userRole: String?
         get() = prefs.getString(Constants.PREF_USER_ROLE, null)
@@ -52,6 +69,10 @@ class SessionManager(context: Context) {
         get() = prefs.getLong(Constants.PREF_LAST_CHECK_OUT_TIME, 0L)
         set(value) = prefs.edit().putLong(Constants.PREF_LAST_CHECK_OUT_TIME, value).apply()
 
+    var isActive: Boolean
+        get() = prefs.getBoolean(Constants.PREF_IS_ACTIVE, false)
+        set(value) = prefs.edit().putBoolean(Constants.PREF_IS_ACTIVE, value).apply()
+
     val isLoggedIn: Boolean
         get() = accessToken != null && userId != null
 
@@ -61,4 +82,6 @@ class SessionManager(context: Context) {
     fun clearSession() {
         prefs.edit().clear().apply()
     }
+
+
 }

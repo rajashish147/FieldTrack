@@ -37,6 +37,7 @@ fun currentIso8601(): String {
 
 fun currentDateString(): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    sdf.timeZone = TimeZone.getTimeZone("UTC")
     return sdf.format(Date())
 }
 

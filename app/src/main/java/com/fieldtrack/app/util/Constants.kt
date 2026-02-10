@@ -32,6 +32,8 @@ object Constants {
     const val PREF_IS_CHECKED_IN = "is_checked_in"
     const val PREF_CHECK_IN_TIME = "check_in_time"
     const val PREF_LAST_CHECK_OUT_TIME = "last_check_out_time"
+    const val PREF_IS_ACTIVE = "is_active"
+    const val PREF_EXPIRES_AT = "token_expires_at"
 
     // Intent Extras
     const val EXTRA_USER_ID = "extra_user_id"
