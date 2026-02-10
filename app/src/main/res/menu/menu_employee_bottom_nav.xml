@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/attendanceFragment"
+        android:icon="@drawable/ic_home"
+        android:title="@string/attendance" />
+
+    <item
+        android:id="@+id/myLocationFragment"
+        android:icon="@drawable/ic_location_on"
+        android:title="@string/my_location" />
+
+    <item
+        android:id="@+id/employeeExpenseFragment"
+        android:icon="@drawable/ic_expense"
+        android:title="@string/expenses" />
+
+</menu>
