@@ -4,48 +4,75 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import com.fieldtrack.app.data.remote.NetworkResult
+import com.fieldtrack.app.data.repository.LoginResult
+import com.fieldtrack.app.data.repository.SignUpResult
 import com.fieldtrack.app.databinding.ActivityLoginBinding
-import com.fieldtrack.app.ui.admin.AdminActivity
-import com.fieldtrack.app.ui.dashboard.DashboardActivity
+import com.fieldtrack.app.ui.admin.AdminHomeActivity
+import com.fieldtrack.app.ui.employee.EmployeeHomeActivity
+import com.fieldtrack.app.util.ConfigValidator
 import com.fieldtrack.app.util.SecurityUtils
 import com.fieldtrack.app.util.showToast
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private val viewModel: LoginViewModel by viewModel()
+    private val configValidator: ConfigValidator by inject()
 
     private var isLoginMode = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Block startup if required config is missing (no crash)
+        if (configValidator.isMissingConfig()) {
+            showConfigError()
+            return
+        }
 
         if (viewModel.isLoggedIn()) {
-            binding = ActivityLoginBinding.inflate(layoutInflater)
-            setContentView(binding.root)
             setLoadingState(true)
             viewModel.validateSession()
             observeSessionValidation()
             return
         }
 
-        binding = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
         setupUI()
         observeViewModel()
     }
 
+    private fun showConfigError() {
+        setLoadingState(false)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Configuration Error")
+            .setMessage(configValidator.getMissingConfigMessage())
+            .setCancelable(false)
+            .setPositiveButton("Close") { _, _ -> finish() }
+            .show()
+    }
+
+    /**
+     * Observes session validation and routes based on LoginResult:
+     * - Success -> Employee or Admin home
+     * - PendingApproval -> PendingApprovalActivity
+     * - Error -> Show login form
+     */
     private fun observeSessionValidation() {
-        viewModel.sessionValid.observe(this) { valid ->
-            if (valid == true) {
-                navigateToHome()
-            } else {
-                setLoadingState(false)
-                setupUI()
-                observeViewModel()
+        viewModel.sessionValidation.observe(this) { result ->
+            when (result) {
+                is LoginResult.Success -> navigateToHome()
+                is LoginResult.PendingApproval -> navigateToPendingApproval()
+                is LoginResult.Error -> {
+                    setLoadingState(false)
+                    setupUI()
+                    observeViewModel()
+                }
+                null -> { /* initial state */ }
             }
         }
     }
@@ -116,43 +143,78 @@ class LoginActivity : AppCompatActivity() {
         binding.tvToggleMode.isEnabled = !loading
     }
 
+    /**
+     * Observes login and signup results.
+     * Login now returns LoginResult which supports PendingApproval.
+     */
     private fun observeViewModel() {
         viewModel.loginResult.observe(this) { result ->
             when (result) {
-                is NetworkResult.Loading -> setLoadingState(true)
-                is NetworkResult.Success -> {
+                is LoginResult.Success -> {
                     setLoadingState(false)
                     navigateToHome()
                 }
-                is NetworkResult.Error -> {
+                is LoginResult.PendingApproval -> {
+                    setLoadingState(false)
+                    navigateToPendingApproval()
+                }
+                is LoginResult.Error -> {
                     setLoadingState(false)
                     showToast(result.message)
                 }
+                null -> { /* initial state */ }
             }
+        }
+
+        viewModel.isLoading.observe(this) { loading ->
+            setLoadingState(loading)
         }
 
         viewModel.signUpResult.observe(this) { result ->
             when (result) {
-                is NetworkResult.Loading -> setLoadingState(true)
-                is NetworkResult.Success -> {
-                    setLoadingState(false)
-                    navigateToHome()
+                is SignUpResult.NeedsEmailVerification -> {
+                    // Show email verification banner, switch back to login mode
+                    showEmailVerificationState()
                 }
-                is NetworkResult.Error -> {
-                    setLoadingState(false)
+                is SignUpResult.Error -> {
                     showToast(result.message)
                 }
+                null -> { /* initial state */ }
             }
         }
     }
 
+    private fun showEmailVerificationState() {
+        // Switch to login mode and show verification message
+        isLoginMode = true
+        updateUIMode()
+        binding.tvTitle.text = "Verify Your Email"
+        binding.tvToggleMode.text = "A verification link has been sent to your email.\nPlease verify, then login."
+        binding.tvToggleMode.isEnabled = false
+        binding.btnLogin.text = "Login"
+    }
+
+    /**
+     * Routes to appropriate home screen based on user role.
+     */
     private fun navigateToHome() {
         val intent = if (viewModel.isAdmin()) {
-            Intent(this, AdminActivity::class.java)
+            Intent(this, AdminHomeActivity::class.java)
         } else {
-            Intent(this, DashboardActivity::class.java)
+            Intent(this, EmployeeHomeActivity::class.java)
         }
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+
+    /**
+     * Routes to the pending approval screen when is_active = false.
+     */
+    private fun navigateToPendingApproval() {
+        val intent = Intent(this, PendingApprovalActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
         startActivity(intent)
         finish()
     }

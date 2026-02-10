@@ -57,15 +57,33 @@
             </intent-filter>
         </activity>
 
+        <!-- Pending Approval (shown when user is_active = false) -->
+        <activity
+            android:name=".ui.auth.PendingApprovalActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FieldTrack.NoActionBar" />
+
+        <!-- Employee Home (new, fragment-based) -->
+        <activity
+            android:name=".ui.employee.EmployeeHomeActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FieldTrack.NoActionBar" />
+
         <!-- Employee Dashboard -->
         <activity
             android:name=".ui.dashboard.DashboardActivity"
             android:exported="false"
             android:theme="@style/Theme.FieldTrack.NoActionBar" />
 
-        <!-- Admin Dashboard -->
+        <!-- Admin Dashboard (legacy) -->
         <activity
             android:name=".ui.admin.AdminActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FieldTrack.NoActionBar" />
+
+        <!-- Admin Home (new, fragment-based) -->
+        <activity
+            android:name=".ui.admin.AdminHomeActivity"
             android:exported="false"
             android:theme="@style/Theme.FieldTrack.NoActionBar" />
 

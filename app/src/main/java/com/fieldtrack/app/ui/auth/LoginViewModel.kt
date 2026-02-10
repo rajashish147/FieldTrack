@@ -5,21 +5,22 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.fieldtrack.app.data.model.User
-import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.repository.AuthRepository
+import com.fieldtrack.app.data.repository.LoginResult
+import com.fieldtrack.app.data.repository.SignUpResult
 import kotlinx.coroutines.launch
 
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
-    private val _loginResult = MutableLiveData<NetworkResult<User>>()
-    val loginResult: LiveData<NetworkResult<User>> = _loginResult
+    private val _loginResult = MutableLiveData<LoginResult?>()
+    val loginResult: LiveData<LoginResult?> = _loginResult
 
-    private val _signUpResult = MutableLiveData<NetworkResult<User>>()
-    val signUpResult: LiveData<NetworkResult<User>> = _signUpResult
+    private val _signUpResult = MutableLiveData<SignUpResult?>()
+    val signUpResult: LiveData<SignUpResult?> = _signUpResult
 
-    private val _sessionValid = MutableLiveData<Boolean?>()
-    val sessionValid: LiveData<Boolean?> = _sessionValid
+    /** Session validation now returns LoginResult for proper routing */
+    private val _sessionValidation = MutableLiveData<LoginResult?>()
+    val sessionValidation: LiveData<LoginResult?> = _sessionValidation
 
     data class ValidationResult(
         val isValid: Boolean,
@@ -31,35 +32,41 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun login(email: String, password: String) {
         val validation = validateLogin(email, password)
         if (!validation.isValid) {
-            _loginResult.value = NetworkResult.Error(
+            _loginResult.value = LoginResult.Error(
                 validation.emailError ?: validation.passwordError ?: "Invalid input"
             )
             return
         }
-        _loginResult.value = NetworkResult.Loading
         viewModelScope.launch {
             _loginResult.value = authRepository.login(email, password)
         }
     }
 
+    private val _isLoading = MutableLiveData(false)
+    val isLoading: LiveData<Boolean> = _isLoading
+
     fun signUp(email: String, password: String, name: String) {
         val validation = validateSignUp(email, password, name)
         if (!validation.isValid) {
-            _signUpResult.value = NetworkResult.Error(
+            _signUpResult.value = SignUpResult.Error(
                 validation.nameError ?: validation.emailError ?: validation.passwordError ?: "Invalid input"
             )
             return
         }
-        _signUpResult.value = NetworkResult.Loading
+        _isLoading.value = true
         viewModelScope.launch {
             _signUpResult.value = authRepository.signUp(email, password, name)
+            _isLoading.value = false
         }
     }
 
+    /**
+     * Validates the current session and returns LoginResult.
+     * Used on app launch to check if user is approved, pending, or expired.
+     */
     fun validateSession() {
         viewModelScope.launch {
-            val valid = authRepository.validateSession()
-            _sessionValid.value = valid
+            _sessionValidation.value = authRepository.validateSession()
         }
     }
 
