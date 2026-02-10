@@ -4,121 +4,84 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.fieldtrack.app.data.model.Expense
-import com.fieldtrack.app.data.model.Report
 import com.fieldtrack.app.data.model.User
 import com.fieldtrack.app.data.remote.NetworkResult
-import com.fieldtrack.app.data.remote.api.UserApi
-import com.fieldtrack.app.data.repository.ExpenseRepository
-import com.fieldtrack.app.data.repository.LocationRepository
-import com.fieldtrack.app.data.repository.ReportRepository
-import com.fieldtrack.app.util.Constants
+import com.fieldtrack.app.data.repository.AdminRepository
 import kotlinx.coroutines.launch
 
+/**
+ * Shared ViewModel for admin fragments (EmployeeListFragment, ApprovalFragment).
+ * Manages employee list + approval operations, all RLS-enforced server-side.
+ */
 class AdminViewModel(
-    private val userApi: UserApi,
-    private val locationRepository: LocationRepository,
-    private val reportRepository: ReportRepository,
-    private val expenseRepository: ExpenseRepository
+    private val adminRepository: AdminRepository
 ) : ViewModel() {
 
-    private val _employees = MutableLiveData<List<User>>()
-    val employees: LiveData<List<User>> = _employees
+    private val _allEmployees = MutableLiveData<List<User>>()
+    val allEmployees: LiveData<List<User>> = _allEmployees
 
-    private val _employeeNames = MutableLiveData<Map<String, String>>()
-    val employeeNames: LiveData<Map<String, String>> = _employeeNames
+    private val _pendingEmployees = MutableLiveData<List<User>>()
+    val pendingEmployees: LiveData<List<User>> = _pendingEmployees
 
-    private val _allReports = MutableLiveData<List<Report>>()
-    val allReports: LiveData<List<Report>> = _allReports
-
-    private val _allExpenses = MutableLiveData<List<Expense>>()
-    val allExpenses: LiveData<List<Expense>> = _allExpenses
-
-    private val _isLoading = MutableLiveData<Boolean>()
+    private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _error = MutableLiveData<String?>()
-    val error: LiveData<String?> = _error
+    private val _toastMessage = MutableLiveData<String?>()
+    val toastMessage: LiveData<String?> = _toastMessage
 
-    private val _statusUpdateResult = MutableLiveData<String?>()
-    val statusUpdateResult: LiveData<String?> = _statusUpdateResult
-
-    fun loadEmployees() {
+    fun loadAllEmployees() {
         _isLoading.value = true
         viewModelScope.launch {
-            try {
-                val response = userApi.getUsersByRole(role = "eq.${Constants.ROLE_EMPLOYEE}")
-                if (response.isSuccessful && response.body() != null) {
-                    val users = response.body()!!.map { it.toModel() }
-                    _employees.value = users
-                    _employeeNames.value = users.associate { it.id to it.name }
-                } else {
-                    _error.value = "Failed to load employees"
-                }
-            } catch (e: Exception) {
-                _error.value = e.message
+            when (val result = adminRepository.getAllEmployees()) {
+                is NetworkResult.Success -> _allEmployees.value = result.data
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
             }
             _isLoading.value = false
         }
     }
 
-    fun loadAllReports() {
+    fun loadPendingEmployees() {
         _isLoading.value = true
         viewModelScope.launch {
-            when (val result = reportRepository.fetchAllReports()) {
-                is NetworkResult.Success -> _allReports.value = result.data
-                is NetworkResult.Error -> _error.value = result.message
-                is NetworkResult.Loading -> { }
+            when (val result = adminRepository.getPendingEmployees()) {
+                is NetworkResult.Success -> _pendingEmployees.value = result.data
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
             }
             _isLoading.value = false
         }
     }
 
-    fun loadAllExpenses() {
-        _isLoading.value = true
+    fun approveEmployee(userId: String) {
         viewModelScope.launch {
-            when (val result = expenseRepository.fetchAllExpenses()) {
-                is NetworkResult.Success -> _allExpenses.value = result.data
-                is NetworkResult.Error -> _error.value = result.message
-                is NetworkResult.Loading -> { }
-            }
-            _isLoading.value = false
-        }
-    }
-
-    fun approveExpense(expenseId: String) {
-        _isLoading.value = true
-        viewModelScope.launch {
-            when (val result = expenseRepository.updateExpenseStatus(expenseId, Constants.EXPENSE_STATUS_APPROVED)) {
+            when (val result = adminRepository.approveEmployee(userId)) {
                 is NetworkResult.Success -> {
-                    _statusUpdateResult.value = "Expense approved"
-                    loadAllExpenses()
+                    _toastMessage.value = "Employee approved"
+                    loadPendingEmployees()
+                    loadAllEmployees()
                 }
-                is NetworkResult.Error -> _error.value = result.message
-                is NetworkResult.Loading -> { }
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
             }
         }
     }
 
-    fun rejectExpense(expenseId: String) {
-        _isLoading.value = true
+    fun deactivateEmployee(userId: String) {
         viewModelScope.launch {
-            when (val result = expenseRepository.updateExpenseStatus(expenseId, Constants.EXPENSE_STATUS_REJECTED)) {
+            when (val result = adminRepository.deactivateEmployee(userId)) {
                 is NetworkResult.Success -> {
-                    _statusUpdateResult.value = "Expense rejected"
-                    loadAllExpenses()
+                    _toastMessage.value = "Employee deactivated"
+                    loadAllEmployees()
+                    loadPendingEmployees()
                 }
-                is NetworkResult.Error -> _error.value = result.message
-                is NetworkResult.Loading -> { }
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
             }
         }
     }
 
-    fun clearError() {
-        _error.value = null
-    }
-
-    fun clearStatusUpdateResult() {
-        _statusUpdateResult.value = null
+    fun clearToast() {
+        _toastMessage.value = null
     }
 }

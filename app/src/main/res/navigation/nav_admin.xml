@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_admin"
+    app:startDestination="@id/employeeListFragment">
+
+    <fragment
+        android:id="@+id/employeeListFragment"
+        android:name="com.fieldtrack.app.ui.admin.EmployeeListFragment"
+        android:label="@string/employees"
+        tools:layout="@layout/fragment_employee_list" />
+
+    <fragment
+        android:id="@+id/approvalFragment"
+        android:name="com.fieldtrack.app.ui.admin.ApprovalFragment"
+        android:label="@string/approvals"
+        tools:layout="@layout/fragment_approval" />
+
+    <fragment
+        android:id="@+id/liveTrackingFragment"
+        android:name="com.fieldtrack.app.ui.admin.LiveTrackingFragment"
+        android:label="@string/live_tracking"
+        tools:layout="@layout/fragment_live_tracking" />
+
+</navigation>
