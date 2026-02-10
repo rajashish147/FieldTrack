@@ -7,16 +7,23 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fieldtrack.app.data.local.AppDatabase
+import com.fieldtrack.app.data.model.Location
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.data.repository.ReportRepository
 import com.fieldtrack.app.data.repository.ExpenseRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * ViewModel for employee home — manages check-in/out state, work timer,
- * sync operations, and logout.
+ * sync operations, today's location data, and logout.
  * Replaces the old DashboardViewModel.
  */
 class EmployeeHomeViewModel(
@@ -56,6 +63,13 @@ class EmployeeHomeViewModel(
 
     private val _isSyncing = MutableLiveData(false)
     val isSyncing: LiveData<Boolean> = _isSyncing
+
+    // ── Today's locations (for MyLocationFragment map) ──
+
+    private val _todayLocations = MutableLiveData<List<Location>>(emptyList())
+    val todayLocations: LiveData<List<Location>> = _todayLocations
+
+    private var locationCollectionJob: Job? = null
 
     // ── UI messages ──
 
@@ -97,6 +111,36 @@ class EmployeeHomeViewModel(
         }
     }
 
+    /**
+     * Collect today's locations from local Room DB as a Flow.
+     * Updates in real-time as the LocationTrackingService saves new points.
+     * Uses start-of-local-day converted to UTC for correct timezone handling.
+     */
+    fun loadTodayLocations() {
+        val userId = sessionManager.userId ?: return
+
+        // Calculate start of today (local timezone) and format as UTC ISO 8601
+        // to match the stored timestamp format
+        val cal = Calendar.getInstance() // local timezone
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+
+        val utcFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+        utcFormat.timeZone = TimeZone.getTimeZone("UTC")
+        val startOfToday = utcFormat.format(cal.time)
+
+        // Cancel any previous collection to avoid duplicates
+        locationCollectionJob?.cancel()
+        locationCollectionJob = viewModelScope.launch {
+            locationRepository.getLocationsSince(userId, startOfToday)
+                .collectLatest { locations ->
+                    _todayLocations.value = locations
+                }
+        }
+    }
+
     fun syncData() {
         _isSyncing.value = true
         viewModelScope.launch {
@@ -115,10 +159,13 @@ class EmployeeHomeViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            // Clean up local data
-            database.locationDao().deleteAll()
-            database.reportDao().deleteAll()
-            database.expenseDao().deleteAll()
+            val userId = sessionManager.userId
+            // Clean up current user's local data only
+            if (userId != null) {
+                database.locationDao().deleteAll(userId)
+                database.reportDao().deleteAll(userId)
+                database.expenseDao().deleteAll(userId)
+            }
             authRepository.logout()
         }
     }
@@ -157,5 +204,7 @@ class EmployeeHomeViewModel(
     override fun onCleared() {
         super.onCleared()
         handler.removeCallbacks(timerRunnable)
+        locationCollectionJob?.cancel()
     }
 }
+
