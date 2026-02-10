@@ -69,19 +69,7 @@
             android:exported="false"
             android:theme="@style/Theme.FieldTrack.NoActionBar" />
 
-        <!-- Employee Dashboard -->
-        <activity
-            android:name=".ui.dashboard.DashboardActivity"
-            android:exported="false"
-            android:theme="@style/Theme.FieldTrack.NoActionBar" />
-
-        <!-- Admin Dashboard (legacy) -->
-        <activity
-            android:name=".ui.admin.AdminActivity"
-            android:exported="false"
-            android:theme="@style/Theme.FieldTrack.NoActionBar" />
-
-        <!-- Admin Home (new, fragment-based) -->
+        <!-- Admin Home (fragment-based) -->
         <activity
             android:name=".ui.admin.AdminHomeActivity"
             android:exported="false"

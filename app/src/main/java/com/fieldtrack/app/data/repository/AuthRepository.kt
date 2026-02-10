@@ -10,6 +10,7 @@ import com.fieldtrack.app.data.remote.dto.RefreshTokenRequest
 import com.fieldtrack.app.data.remote.dto.SignUpRequest
 import com.fieldtrack.app.data.remote.dto.SupabaseError
 import com.fieldtrack.app.data.remote.dto.UserDto
+import com.fieldtrack.app.util.Constants
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -187,7 +188,7 @@ class AuthRepository(
             }
         } catch (e: Exception) {
             // Network error fetching profile — return fallback as pending
-            sessionManager.userRole = "employee"
+            sessionManager.userRole = Constants.ROLE_EMPLOYEE
             sessionManager.userName = ""
             sessionManager.isActive = false
             LoginResult.PendingApproval
@@ -200,7 +201,7 @@ class AuthRepository(
             val dto = UserDto(
                 id = userId,
                 name = name.ifBlank { "Employee" },
-                role = "employee",
+                role = Constants.ROLE_EMPLOYEE,
                 isCheckedIn = false,
                 isActive = false   // new users need admin approval
             )
@@ -211,14 +212,14 @@ class AuthRepository(
                 sessionManager.userName = created.name
                 sessionManager.isActive = created.isActive
             } else {
-                sessionManager.userRole = "employee"
+                sessionManager.userRole = Constants.ROLE_EMPLOYEE
                 sessionManager.userName = name
                 sessionManager.isActive = false
             }
             // Always pending after creating a new profile
             LoginResult.PendingApproval
         } catch (e: Exception) {
-            sessionManager.userRole = "employee"
+            sessionManager.userRole = Constants.ROLE_EMPLOYEE
             sessionManager.isActive = false
             LoginResult.PendingApproval
         }

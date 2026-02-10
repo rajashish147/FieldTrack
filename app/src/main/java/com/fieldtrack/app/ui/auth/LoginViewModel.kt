@@ -37,8 +37,10 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
             )
             return
         }
+        _isLoading.value = true
         viewModelScope.launch {
             _loginResult.value = authRepository.login(email, password)
+            _isLoading.value = false
         }
     }
 
