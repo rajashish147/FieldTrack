@@ -73,6 +73,11 @@ CREATE POLICY "Admins can view all users"
         )
     );
 
+-- Users can insert their own profile (fallback if trigger doesn't fire)
+CREATE POLICY "Users can insert own profile"
+    ON users FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
 -- Users can update their own check-in status
 CREATE POLICY "Users can update own check-in"
     ON users FOR UPDATE
@@ -147,7 +152,8 @@ BEGIN
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'name', NEW.email),
         'employee'
-    );
+    )
+    ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
