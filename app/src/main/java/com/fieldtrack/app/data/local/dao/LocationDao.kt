@@ -22,18 +22,21 @@ interface LocationDao {
     @Query("SELECT * FROM locations WHERE userId = :userId AND date(timestamp) = :date ORDER BY timestamp ASC")
     fun getLocationsByUserAndDate(userId: String, date: String): Flow<List<LocationEntity>>
 
-    @Query("SELECT * FROM locations WHERE isSynced = 0")
-    suspend fun getUnsyncedLocations(): List<LocationEntity>
+    @Query("SELECT * FROM locations WHERE userId = :userId AND timestamp >= :sinceTimestamp ORDER BY timestamp ASC")
+    fun getLocationsSince(userId: String, sinceTimestamp: String): Flow<List<LocationEntity>>
+
+    @Query("SELECT * FROM locations WHERE isSynced = 0 AND userId = :userId")
+    suspend fun getUnsyncedLocations(userId: String): List<LocationEntity>
 
     @Query("UPDATE locations SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<String>)
 
-    @Query("DELETE FROM locations WHERE timestamp < :beforeTimestamp AND isSynced = 1")
-    suspend fun deleteOldSyncedLocations(beforeTimestamp: String)
+    @Query("DELETE FROM locations WHERE timestamp < :beforeTimestamp AND isSynced = 1 AND userId = :userId")
+    suspend fun deleteOldSyncedLocations(beforeTimestamp: String, userId: String)
 
-    @Query("SELECT COUNT(*) FROM locations WHERE isSynced = 0")
-    suspend fun getUnsyncedCount(): Int
+    @Query("SELECT COUNT(*) FROM locations WHERE isSynced = 0 AND userId = :userId")
+    suspend fun getUnsyncedCount(userId: String): Int
 
-    @Query("DELETE FROM locations")
-    suspend fun deleteAll()
+    @Query("DELETE FROM locations WHERE userId = :userId")
+    suspend fun deleteAll(userId: String)
 }

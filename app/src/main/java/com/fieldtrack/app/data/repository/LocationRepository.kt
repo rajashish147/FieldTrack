@@ -57,10 +57,17 @@ class LocationRepository(
             entities.map { it.toModel() }
         }
 
+    fun getLocationsSince(userId: String, sinceTimestamp: String): Flow<List<Location>> =
+        locationDao.getLocationsSince(userId, sinceTimestamp).map { entities ->
+            entities.map { it.toModel() }
+        }
+
     suspend fun syncUnsyncedLocations(): NetworkResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val unsynced = locationDao.getUnsyncedLocations()
+                val userId = sessionManager.userId
+                    ?: return@withContext NetworkResult.Error("No user ID")
+                val unsynced = locationDao.getUnsyncedLocations(userId)
                 if (unsynced.isEmpty()) return@withContext NetworkResult.Success(Unit)
 
                 val dtos = unsynced.map { LocationDto.fromModel(it.toModel()) }
@@ -114,12 +121,14 @@ class LocationRepository(
         }
 
     suspend fun getUnsyncedCount(): Int = withContext(Dispatchers.IO) {
-        locationDao.getUnsyncedCount()
+        val userId = sessionManager.userId ?: return@withContext 0
+        locationDao.getUnsyncedCount(userId)
     }
 
     suspend fun cleanupOldSyncedLocations(beforeTimestamp: String) {
         withContext(Dispatchers.IO) {
-            locationDao.deleteOldSyncedLocations(beforeTimestamp)
+            val userId = sessionManager.userId ?: return@withContext
+            locationDao.deleteOldSyncedLocations(beforeTimestamp, userId)
         }
     }
 }
