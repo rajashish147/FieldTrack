@@ -29,6 +29,23 @@ class ExpenseRepository(
             entities.map { it.toModel() }
         }
 
+    /**
+     * Pull the latest expense data from the server and upsert into Room.
+     * This ensures status changes (e.g. admin approval) are reflected locally.
+     */
+    suspend fun refreshExpensesFromServer(userId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val response = expenseApi.getExpensesByUser(userId = "eq.$userId")
+                if (response.isSuccessful && response.body() != null) {
+                    response.body()!!.forEach { dto ->
+                        expenseDao.insert(ExpenseEntity.fromModel(dto.toModel(), synced = true))
+                    }
+                }
+            } catch (_: Exception) { /* silent — local cache still works */ }
+        }
+    }
+
     fun getExpensesByStatus(userId: String, status: String): Flow<List<Expense>> =
         expenseDao.getExpensesByStatus(userId, status).map { entities ->
             entities.map { it.toModel() }

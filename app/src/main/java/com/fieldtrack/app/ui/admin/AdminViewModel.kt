@@ -4,9 +4,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fieldtrack.app.data.model.Expense
 import com.fieldtrack.app.data.model.User
 import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.repository.AdminRepository
+import com.fieldtrack.app.data.repository.ExpenseRepository
 import com.fieldtrack.app.data.repository.LocationRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -34,7 +36,8 @@ data class EmployeeLocation(
  */
 class AdminViewModel(
     private val adminRepository: AdminRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val expenseRepository: ExpenseRepository
 ) : ViewModel() {
 
     private val _allEmployees = MutableLiveData<List<User>>()
@@ -45,6 +48,13 @@ class AdminViewModel(
 
     private val _employeeLocations = MutableLiveData<List<EmployeeLocation>>()
     val employeeLocations: LiveData<List<EmployeeLocation>> = _employeeLocations
+
+    private val _expenses = MutableLiveData<List<Expense>>()
+    val expenses: LiveData<List<Expense>> = _expenses
+
+    /** Map of userId → employee name for display in expense cards */
+    private val _employeeNames = MutableLiveData<Map<String, String>>(emptyMap())
+    val employeeNames: LiveData<Map<String, String>> = _employeeNames
 
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -156,5 +166,55 @@ class AdminViewModel(
 
     fun clearToast() {
         _toastMessage.value = null
+    }
+
+    // ── Expense management ──────────────────────────────────────────
+
+    fun loadAllExpenses() {
+        _isLoading.value = true
+        viewModelScope.launch {
+            // Load employee names if not yet cached
+            if (_employeeNames.value.isNullOrEmpty()) {
+                when (val empResult = adminRepository.getAllEmployees()) {
+                    is NetworkResult.Success -> {
+                        _employeeNames.value = empResult.data.associate { it.id to it.name }
+                    }
+                    else -> { /* names will fall back to userId */ }
+                }
+            }
+
+            when (val result = expenseRepository.fetchAllExpenses()) {
+                is NetworkResult.Success -> _expenses.value = result.data
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun approveExpense(expenseId: String) {
+        viewModelScope.launch {
+            when (val result = expenseRepository.updateExpenseStatus(expenseId, "approved")) {
+                is NetworkResult.Success -> {
+                    _toastMessage.value = "Expense approved"
+                    loadAllExpenses()
+                }
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
+            }
+        }
+    }
+
+    fun rejectExpense(expenseId: String) {
+        viewModelScope.launch {
+            when (val result = expenseRepository.updateExpenseStatus(expenseId, "rejected")) {
+                is NetworkResult.Success -> {
+                    _toastMessage.value = "Expense rejected"
+                    loadAllExpenses()
+                }
+                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
+            }
+        }
     }
 }

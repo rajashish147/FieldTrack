@@ -19,8 +19,8 @@
 
     <fragment
         android:id="@+id/employeeExpenseFragment"
-        android:name="com.fieldtrack.app.ui.employee.EmployeeExpenseFragment"
+        android:name="com.fieldtrack.app.ui.expense.ExpenseFragment"
         android:label="@string/expenses"
-        tools:layout="@layout/fragment_employee_expense" />
+        tools:layout="@layout/fragment_expense" />
 
 </navigation>

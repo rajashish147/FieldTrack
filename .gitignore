@@ -1,19 +1,32 @@
+# Built artifacts
 *.iml
 .gradle
-/local.properties
-/.idea/
-.DS_Store
 /build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-*.hprof
-*.log
 /app/build
 /app/release
 *.apk
 *.aab
+*.hprof
+
+# IDE
+/.idea/
+.DS_Store
+*.log
+.vscode/
+
+# Local config (secrets)
+local.properties
+
+# Native
+.externalNativeBuild
+.cxx
+
+# Signing
 *.jks
 *.keystore
+
+# Keep Gradle wrapper
 !gradle/wrapper/gradle-wrapper.jar
+
+# OS
+Thumbs.db

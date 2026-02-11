@@ -16,4 +16,9 @@
         android:icon="@drawable/ic_tracking"
         android:title="@string/live_tracking" />
 
+    <item
+        android:id="@+id/adminExpenseFragment"
+        android:icon="@drawable/ic_expense"
+        android:title="@string/expenses" />
+
 </menu>

@@ -79,6 +79,9 @@ class ExpenseFragment : Fragment() {
         binding.fabAddExpense.setOnClickListener {
             showAddExpenseDialog()
         }
+        binding.swipeRefresh.setOnRefreshListener {
+            viewModel.refreshExpenses()
+        }
     }
 
     private fun showAddExpenseDialog() {
@@ -154,6 +157,7 @@ class ExpenseFragment : Fragment() {
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
+            binding.swipeRefresh.isRefreshing = false
             binding.fabAddExpense.isEnabled = !loading
         }
 

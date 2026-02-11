@@ -18,7 +18,8 @@ import com.fieldtrack.app.util.toReadableDateTime
 class AdminExpenseAdapter(
     private val employeeNames: Map<String, String>,
     private val onApprove: (Expense) -> Unit,
-    private val onReject: (Expense) -> Unit
+    private val onReject: (Expense) -> Unit,
+    private val onImageClick: (String) -> Unit = {}
 ) : ListAdapter<Expense, AdminExpenseAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -55,8 +56,12 @@ class AdminExpenseAdapter(
             if (expense.billImageUrl.isNotBlank()) {
                 binding.ivBillImage.visibility = View.VISIBLE
                 binding.ivBillImage.load(expense.billImageUrl) { crossfade(true) }
+                binding.ivBillImage.setOnClickListener { onImageClick(expense.billImageUrl) }
+                binding.tvViewBill.visibility = View.VISIBLE
+                binding.tvViewBill.setOnClickListener { onImageClick(expense.billImageUrl) }
             } else {
                 binding.ivBillImage.visibility = View.GONE
+                binding.tvViewBill.visibility = View.GONE
             }
 
             if (expense.status == Constants.EXPENSE_STATUS_PENDING) {

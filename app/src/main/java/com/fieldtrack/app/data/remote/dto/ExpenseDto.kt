@@ -13,7 +13,7 @@ data class ExpenseDto(
     @SerializedName("category")
     val category: String,
     @SerializedName("bill_image_url")
-    val billImageUrl: String,
+    val billImageUrl: String? = "",
     @SerializedName("status")
     val status: String,
     @SerializedName("timestamp")
@@ -24,7 +24,7 @@ data class ExpenseDto(
         userId = userId,
         amount = amount,
         category = category,
-        billImageUrl = billImageUrl,
+        billImageUrl = billImageUrl ?: "",
         status = status,
         timestamp = timestamp
     )

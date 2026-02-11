@@ -160,11 +160,10 @@ class EmployeeHomeViewModel(
     fun logout() {
         viewModelScope.launch {
             val userId = sessionManager.userId
-            // Clean up current user's local data only
+            // Clean up tracking/report data but preserve expense history
             if (userId != null) {
                 database.locationDao().deleteAll(userId)
                 database.reportDao().deleteAll(userId)
-                database.expenseDao().deleteAll(userId)
             }
             authRepository.logout()
         }

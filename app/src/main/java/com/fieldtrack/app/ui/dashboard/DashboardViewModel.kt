@@ -139,12 +139,11 @@ class DashboardViewModel(
         }
         stopDurationTimer()
         viewModelScope.launch {
-            // Clear current user's local data for privacy
+            // Clear tracking/report data but preserve expense history
             val userId = sessionManager.userId
             if (userId != null) {
                 appDatabase.locationDao().deleteAll(userId)
                 appDatabase.reportDao().deleteAll(userId)
-                appDatabase.expenseDao().deleteAll(userId)
             }
             authRepository.logout()
         }

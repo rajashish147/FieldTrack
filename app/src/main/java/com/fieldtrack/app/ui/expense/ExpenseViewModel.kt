@@ -42,9 +42,21 @@ class ExpenseViewModel(
     fun loadExpenses() {
         val userId = sessionManager.userId ?: return
         viewModelScope.launch {
+            // Observe local DB (reactive — auto-updates when Room data changes)
             expenseRepository.getExpensesByUser(userId).collectLatest { expenses ->
                 _expenses.value = expenses
             }
+        }
+        // Also pull latest from server so status changes (approvals) show up
+        refreshExpenses()
+    }
+
+    fun refreshExpenses() {
+        val userId = sessionManager.userId ?: return
+        _isLoading.value = true
+        viewModelScope.launch {
+            expenseRepository.refreshExpensesFromServer(userId)
+            _isLoading.value = false
         }
     }
 
