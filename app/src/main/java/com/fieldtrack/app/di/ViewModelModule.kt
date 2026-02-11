@@ -18,6 +18,6 @@ val viewModelModule = module {
     viewModel { MapViewModel(get()) }
     viewModel { ReportViewModel(get(), get(), get()) }
     viewModel { ExpenseViewModel(get(), get(), get()) }
-    viewModel { AdminViewModel(get()) }
+    viewModel { AdminViewModel(get(), get()) }
 }
 
