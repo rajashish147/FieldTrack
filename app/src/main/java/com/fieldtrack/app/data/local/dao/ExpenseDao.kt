@@ -23,8 +23,8 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE id = :id")
     suspend fun getExpenseById(id: String): ExpenseEntity?
 
-    @Query("SELECT * FROM expenses WHERE isSynced = 0")
-    suspend fun getUnsyncedExpenses(): List<ExpenseEntity>
+    @Query("SELECT * FROM expenses WHERE isSynced = 0 AND userId = :userId")
+    suspend fun getUnsyncedExpenses(userId: String): List<ExpenseEntity>
 
     @Query("UPDATE expenses SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<String>)
@@ -32,6 +32,6 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE userId = :userId AND status = :status ORDER BY timestamp DESC")
     fun getExpensesByStatus(userId: String, status: String): Flow<List<ExpenseEntity>>
 
-    @Query("DELETE FROM expenses")
-    suspend fun deleteAll()
+    @Query("DELETE FROM expenses WHERE userId = :userId")
+    suspend fun deleteAll(userId: String)
 }

@@ -11,7 +11,7 @@ val repositoryModule = module {
 
     single { AuthRepository(get(), get(), get()) }
     single { LocationRepository(get(), get(), get(), get()) }
-    single { ReportRepository(get(), get()) }
-    single { ExpenseRepository(get(), get()) }
+    single { ReportRepository(get(), get(), get()) }
+    single { ExpenseRepository(get(), get(), get()) }
     single { AdminRepository(get()) }
 }

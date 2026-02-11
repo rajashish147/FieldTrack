@@ -4,6 +4,7 @@ import com.fieldtrack.app.data.local.dao.ReportDao
 import com.fieldtrack.app.data.local.entity.ReportEntity
 import com.fieldtrack.app.data.model.Report
 import com.fieldtrack.app.data.remote.NetworkResult
+import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.ReportApi
 import com.fieldtrack.app.data.remote.dto.ReportDto
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +14,8 @@ import kotlinx.coroutines.withContext
 
 class ReportRepository(
     private val reportDao: ReportDao,
-    private val reportApi: ReportApi
+    private val reportApi: ReportApi,
+    private val sessionManager: SessionManager
 ) {
 
     suspend fun saveReportLocally(report: Report) {
@@ -30,7 +32,9 @@ class ReportRepository(
     suspend fun syncUnsyncedReports(): NetworkResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val unsynced = reportDao.getUnsyncedReports()
+                val userId = sessionManager.userId
+                    ?: return@withContext NetworkResult.Error("No user ID")
+                val unsynced = reportDao.getUnsyncedReports(userId)
                 if (unsynced.isEmpty()) return@withContext NetworkResult.Success(Unit)
 
                 var allSynced = true

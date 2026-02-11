@@ -23,8 +23,8 @@ interface ReportDao {
     @Query("SELECT * FROM reports WHERE id = :id")
     suspend fun getReportById(id: String): ReportEntity?
 
-    @Query("SELECT * FROM reports WHERE isSynced = 0")
-    suspend fun getUnsyncedReports(): List<ReportEntity>
+    @Query("SELECT * FROM reports WHERE isSynced = 0 AND userId = :userId")
+    suspend fun getUnsyncedReports(userId: String): List<ReportEntity>
 
     @Query("UPDATE reports SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markAsSynced(ids: List<String>)
@@ -32,6 +32,6 @@ interface ReportDao {
     @Query("SELECT * FROM reports WHERE userId = :userId AND date = :date LIMIT 1")
     suspend fun getReportByUserAndDate(userId: String, date: String): ReportEntity?
 
-    @Query("DELETE FROM reports")
-    suspend fun deleteAll()
+    @Query("DELETE FROM reports WHERE userId = :userId")
+    suspend fun deleteAll(userId: String)
 }

@@ -4,6 +4,7 @@ import com.fieldtrack.app.data.local.dao.ExpenseDao
 import com.fieldtrack.app.data.local.entity.ExpenseEntity
 import com.fieldtrack.app.data.model.Expense
 import com.fieldtrack.app.data.remote.NetworkResult
+import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.ExpenseApi
 import com.fieldtrack.app.data.remote.dto.ExpenseDto
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +14,8 @@ import kotlinx.coroutines.withContext
 
 class ExpenseRepository(
     private val expenseDao: ExpenseDao,
-    private val expenseApi: ExpenseApi
+    private val expenseApi: ExpenseApi,
+    private val sessionManager: SessionManager
 ) {
 
     suspend fun saveExpenseLocally(expense: Expense) {
@@ -35,7 +37,9 @@ class ExpenseRepository(
     suspend fun syncUnsyncedExpenses(): NetworkResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val unsynced = expenseDao.getUnsyncedExpenses()
+                val userId = sessionManager.userId
+                    ?: return@withContext NetworkResult.Error("No user ID")
+                val unsynced = expenseDao.getUnsyncedExpenses(userId)
                 if (unsynced.isEmpty()) return@withContext NetworkResult.Success(Unit)
 
                 var allSynced = true
