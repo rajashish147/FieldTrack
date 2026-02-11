@@ -7,14 +7,34 @@ import androidx.lifecycle.viewModelScope
 import com.fieldtrack.app.data.model.User
 import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.repository.AdminRepository
+import com.fieldtrack.app.data.repository.LocationRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
- * Shared ViewModel for admin fragments (EmployeeListFragment, ApprovalFragment).
- * Manages employee list + approval operations, all RLS-enforced server-side.
+ * Lightweight projection for the tracking list and map detail — one per employee.
+ */
+data class EmployeeLocation(
+    val userId: String,
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val lastUpdated: String  // ISO 8601 or empty string if never synced
+) {
+    val hasLocation: Boolean get() = lastUpdated.isNotEmpty()
+}
+
+/**
+ * Shared ViewModel for admin fragments (EmployeeListFragment, ApprovalFragment, LiveTrackingFragment).
+ * Manages employee list + approval operations + live tracking data.
+ * All RLS-enforced server-side.
  */
 class AdminViewModel(
-    private val adminRepository: AdminRepository
+    private val adminRepository: AdminRepository,
+    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     private val _allEmployees = MutableLiveData<List<User>>()
@@ -22,6 +42,9 @@ class AdminViewModel(
 
     private val _pendingEmployees = MutableLiveData<List<User>>()
     val pendingEmployees: LiveData<List<User>> = _pendingEmployees
+
+    private val _employeeLocations = MutableLiveData<List<EmployeeLocation>>()
+    val employeeLocations: LiveData<List<EmployeeLocation>> = _employeeLocations
 
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -47,6 +70,56 @@ class AdminViewModel(
             when (val result = adminRepository.getPendingEmployees()) {
                 is NetworkResult.Success -> _pendingEmployees.value = result.data
                 is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Loading -> { /* no-op */ }
+            }
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * Fetch all employees, then fetch the latest location for each concurrently.
+     * Results are emitted as a list of [EmployeeLocation] for map markers.
+     */
+    fun loadEmployeeLocations() {
+        _isLoading.value = true
+        viewModelScope.launch {
+            when (val empResult = adminRepository.getAllEmployees()) {
+                is NetworkResult.Success -> {
+                    val employees = empResult.data
+                    // Limit concurrent network calls to avoid overwhelming backend
+                    val semaphore = Semaphore(5)
+                    val locationResults = employees.map { employee ->
+                        async {
+                            semaphore.withPermit {
+                                when (val locResult = locationRepository.fetchRemoteLocations(employee.id)) {
+                                    is NetworkResult.Success -> {
+                                        val loc = locResult.data.firstOrNull()
+                                        EmployeeLocation(
+                                            userId = employee.id,
+                                            name = employee.name,
+                                            latitude = loc?.latitude ?: 0.0,
+                                            longitude = loc?.longitude ?: 0.0,
+                                            lastUpdated = loc?.timestamp ?: ""
+                                        )
+                                    }
+                                    is NetworkResult.Error -> {
+                                        EmployeeLocation(
+                                            userId = employee.id,
+                                            name = employee.name,
+                                            latitude = 0.0,
+                                            longitude = 0.0,
+                                            lastUpdated = ""
+                                        )
+                                    }
+                                    is NetworkResult.Loading -> null
+                                }
+                            }
+                        }
+                    }.awaitAll()
+
+                    _employeeLocations.value = locationResults.filterNotNull()
+                }
+                is NetworkResult.Error -> _toastMessage.value = empResult.message
                 is NetworkResult.Loading -> { /* no-op */ }
             }
             _isLoading.value = false
