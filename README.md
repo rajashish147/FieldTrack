@@ -13,6 +13,7 @@ Android MVP for tracking field employee GPS locations during work hours.
 - **Backend:** Supabase (PostgreSQL + REST API + JWT Auth)
 - **Maps:** Google Maps SDK
 - **Location:** Fused Location Provider (Foreground Service)
+- **Background Sync:** WorkManager (periodic + batch sync)
 
 ## Setup
 
@@ -35,41 +36,74 @@ Open in Android Studio and sync Gradle. Build and run on a device with API 24+.
 app/src/main/java/com/fieldtrack/app/
 ├── data/
 │   ├── local/          # Room DB, DAOs, Entities
-│   ├── model/          # Domain models (locked)
+│   ├── model/          # Domain models
 │   ├── remote/         # Retrofit APIs, DTOs, Session
 │   └── repository/     # Repository pattern
 ├── di/                 # Koin DI modules
 ├── service/            # Foreground location service, sync worker
 ├── ui/
-│   ├── admin/          # Admin dashboard
+│   ├── admin/          # Admin dashboard, live tracking, employee map
 │   ├── auth/           # Login/SignUp
-│   ├── dashboard/      # Employee dashboard + home
+│   ├── dashboard/      # Legacy employee dashboard
+│   ├── employee/       # Employee home, my location map
 │   ├── expense/        # Expense management
-│   ├── map/            # OSMDroid map view
 │   └── report/         # Daily reports
 └── util/               # Constants, extensions, location utils
 ```
 
 ## Features
 
+### Employee
 - **Authentication:** Email/password via Supabase GoTrue
-- **Check-in/Check-out:** Explicit consent-based work tracking
-- **GPS Tracking:** Foreground service, 2-5 min intervals, balanced power
-- **Abuse Detection:** Mock location detection, GPS status checks
-- **Offline Support:** Room local cache with network sync
-- **Reports:** Daily report submission
-- **Expenses:** Expense tracking with status workflow
-- **Admin Panel:** View employees, reports, expenses; approve/reject expenses
-- **Maps:** OSMDroid route visualization
+- **Check-in/Check-out:** Explicit consent-based work tracking with duration timer
+- **GPS Tracking:** Foreground service with configurable intervals, accuracy filtering, and batch sync
+- **Abuse Detection:** Mock location detection, velocity checks, GPS status monitoring
+- **My Location Map:** Real-time polyline route visualization of today's tracked path with Google Maps
+- **Offline Support:** Room local cache with automatic background sync via WorkManager
+- **Reports:** Daily report submission with optional image attachment
+- **Expenses:** Expense tracking with category, bill image, and approval status workflow
+
+### Admin
+- **Employee Management:** View all employees, approve pending registrations, deactivate accounts
+- **Live Tracking:** List of all employees with last sync timestamps — tap to drill down into a single-employee map showing their last known location
+- **Reports Dashboard:** View and manage all employee reports
+- **Expenses Dashboard:** View, approve, or reject employee expense submissions
 
 ## Data Models
 
 | Model    | Fields |
 |----------|--------|
 | User     | id, name, role (employee/admin), isCheckedIn |
-| Location | id, userId, latitude, longitude, accuracy, timestamp |
-| Report   | id, userId, date, summary, optionalImageUrl |
-| Expense  | id, userId, amount, category, billImageUrl, status, timestamp |
+| Location | id, userId, latitude, longitude, accuracy, timestamp, isSynced |
+| Report   | id, userId, date, summary, optionalImageUrl, isSynced |
+| Expense  | id, userId, amount, category, billImageUrl, status, timestamp, isSynced |
+
+## Architecture & Data Flow
+
+```
+┌─────────────────┐    ┌──────────────┐    ┌──────────────┐
+│  UI (Fragments)  │◄──│  ViewModels   │◄──│ Repositories  │
+└─────────────────┘    └──────────────┘    └──────┬───────┘
+                                                  │
+                                    ┌─────────────┼─────────────┐
+                                    │             │             │
+                               ┌────▼───┐   ┌────▼───┐   ┌────▼────┐
+                               │ Room DB │   │Retrofit│   │ Session │
+                               │ (Local) │   │(Remote)│   │ Manager │
+                               └────────┘   └────────┘   └─────────┘
+```
+
+- **All DAO queries** are scoped to the current `userId` to prevent cross-user data leakage
+- **Row Level Security (RLS)** is enforced server-side on Supabase
+- **Background sync** uses WorkManager with exponential backoff and network constraints
+- **Location cleanup** automatically removes synced data older than the configured retention period
+
+## Security
+
+- All sync/deletion queries are scoped to the authenticated user's ID
+- Supabase RLS ensures server-side data isolation between users
+- JWT tokens are refreshed automatically via `TokenAuthenticator`
+- Logout clears only the current user's local data — other users' cached data is preserved
 
 ## Min SDK
 API 24 (Android 7.0)
