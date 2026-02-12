@@ -1,6 +1,8 @@
 package com.fieldtrack.app.ui.admin
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,8 +13,8 @@ import com.fieldtrack.app.util.showToast
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 
 /**
- * EmployeeListFragment — shows all employees with their activation status.
- * Admin can approve inactive or deactivate active employees.
+ * EmployeeListFragment — shows all approved employees with search functionality.
+ * Tap an employee to view details in a BottomSheet.
  */
 class EmployeeListFragment : Fragment() {
 
@@ -32,30 +34,72 @@ class EmployeeListFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        setupRecyclerView()
+        setupSearch()
+        setupSwipeRefresh()
+        setupLogout()
+        observeViewModel()
+        
+        viewModel.loadAllEmployees()
+    }
+
+    private fun setupRecyclerView() {
         adapter = EmployeeAdapter(
-            onApprove = { viewModel.approveEmployee(it.id) },
-            onDeactivate = { viewModel.deactivateEmployee(it.id) }
+            onEmployeeClick = { employee ->
+                viewModel.selectEmployee(employee)
+                showEmployeeDetailsBottomSheet()
+            }
         )
 
         binding.rvEmployees.layoutManager = LinearLayoutManager(requireContext())
         binding.rvEmployees.adapter = adapter
+    }
 
+    private fun setupSearch() {
+        binding.etSearch.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            
+            override fun afterTextChanged(s: Editable?) {
+                viewModel.updateSearchQuery(s?.toString() ?: "")
+            }
+        })
+        
+        binding.ivClearSearch.setOnClickListener {
+            binding.etSearch.text?.clear()
+        }
+    }
+
+    private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
             viewModel.loadAllEmployees()
         }
+    }
 
+    private fun setupLogout() {
         binding.btnLogout.setOnClickListener {
             (activity as? AdminHomeActivity)?.logout()
         }
-
-        observeViewModel()
-        viewModel.loadAllEmployees()
     }
 
     private fun observeViewModel() {
         viewModel.allEmployees.observe(viewLifecycleOwner) { employees ->
             adapter.submitList(employees)
-            binding.tvNoEmployees.visibility = if (employees.isEmpty()) View.VISIBLE else View.GONE
+            
+            val isEmpty = employees.isEmpty()
+            binding.tvNoEmployees.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            binding.rvEmployees.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            
+            val searchQuery = viewModel.searchQuery.value ?: ""
+            binding.tvNoEmployees.text = if (searchQuery.isNotBlank()) {
+                "No employees match \"$searchQuery\""
+            } else {
+                "No employees found"
+            }
+        }
+
+        viewModel.searchQuery.observe(viewLifecycleOwner) { query ->
+            binding.ivClearSearch.visibility = if (query.isNotBlank()) View.VISIBLE else View.GONE
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
@@ -69,6 +113,11 @@ class EmployeeListFragment : Fragment() {
                 viewModel.clearToast()
             }
         }
+    }
+
+    private fun showEmployeeDetailsBottomSheet() {
+        val bottomSheet = EmployeeDetailsBottomSheet()
+        bottomSheet.show(childFragmentManager, EmployeeDetailsBottomSheet.TAG)
     }
 
     override fun onDestroyView() {

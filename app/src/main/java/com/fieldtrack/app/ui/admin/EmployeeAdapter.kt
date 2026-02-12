@@ -1,6 +1,7 @@
 package com.fieldtrack.app.ui.admin
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
@@ -8,19 +9,18 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.model.User
-import com.fieldtrack.app.databinding.ItemEmployeeApprovalBinding
+import com.fieldtrack.app.databinding.ItemEmployeeBinding
 
 /**
- * RecyclerView adapter for displaying employees in admin list/approval views.
- * Uses ListAdapter with DiffUtil for efficient updates.
+ * Adapter for displaying approved employees in a clean list.
+ * No action buttons shown - tap to view details.
  */
 class EmployeeAdapter(
-    private val onApprove: (User) -> Unit,
-    private val onDeactivate: (User) -> Unit
+    private val onEmployeeClick: (User) -> Unit
 ) : ListAdapter<User, EmployeeAdapter.EmployeeViewHolder>(DIFF_CALLBACK) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EmployeeViewHolder {
-        val binding = ItemEmployeeApprovalBinding.inflate(
+        val binding = ItemEmployeeBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
         )
         return EmployeeViewHolder(binding)
@@ -31,31 +31,39 @@ class EmployeeAdapter(
     }
 
     inner class EmployeeViewHolder(
-        private val binding: ItemEmployeeApprovalBinding
+        private val binding: ItemEmployeeBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(user: User) {
             binding.tvEmployeeName.text = user.name.ifBlank { "Unnamed Employee" }
-
-            // Status badge
+            
             if (user.isActive) {
                 binding.tvStatus.text = "Active"
                 binding.tvStatus.setTextColor(
                     ContextCompat.getColor(binding.root.context, R.color.status_approved)
                 )
-                binding.btnApprove.isEnabled = false
-                binding.btnDeactivate.isEnabled = true
             } else {
-                binding.tvStatus.text = "Pending"
+                binding.tvStatus.text = "Inactive"
                 binding.tvStatus.setTextColor(
-                    ContextCompat.getColor(binding.root.context, R.color.status_pending)
+                    ContextCompat.getColor(binding.root.context, R.color.status_rejected)
                 )
-                binding.btnApprove.isEnabled = true
-                binding.btnDeactivate.isEnabled = false
             }
-
-            binding.btnApprove.setOnClickListener { onApprove(user) }
-            binding.btnDeactivate.setOnClickListener { onDeactivate(user) }
+            
+            binding.tvLastSync.text = user.getFormattedLastSync()
+            
+            // Show sync indicator if synced within the last hour
+            val isRecentlySync = user.lastSyncedAt != null && try {
+                val syncTime = java.time.Instant.parse(user.lastSyncedAt)
+                val now = java.time.Instant.now()
+                val hourAgo = now.minusSeconds(3600)
+                syncTime.isAfter(hourAgo)
+            } catch (e: Exception) {
+                false
+            }
+            
+            binding.ivSyncIndicator.visibility = if (isRecentlySync) View.VISIBLE else View.GONE
+            
+            binding.root.setOnClickListener { onEmployeeClick(user) }
         }
     }
 

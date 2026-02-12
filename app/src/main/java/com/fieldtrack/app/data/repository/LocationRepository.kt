@@ -75,6 +75,19 @@ class LocationRepository(
 
                 if (response.isSuccessful) {
                     locationDao.markAsSynced(unsynced.map { it.id })
+                    
+                    // Update user's last_synced_at timestamp
+                    try {
+                        val currentTime = java.time.Instant.now().toString()
+                        userApi.updateUserLastSync(
+                            id = "eq.$userId",
+                            body = mapOf("last_synced_at" to currentTime)
+                        )
+                    } catch (e: Exception) {
+                        // Log but don't fail the sync if timestamp update fails
+                        android.util.Log.w("LocationRepository", "Failed to update last_synced_at: ${e.message}")
+                    }
+                    
                     NetworkResult.Success(Unit)
                 } else {
                     NetworkResult.Error("Sync failed: ${response.code()}")

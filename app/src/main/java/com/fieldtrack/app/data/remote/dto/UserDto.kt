@@ -8,19 +8,28 @@ data class UserDto(
     val id: String,
     @SerializedName("name")
     val name: String,
+    @SerializedName("email")
+    val email: String? = null,
+    @SerializedName("phone")
+    val phone: String? = null,
     @SerializedName("role")
     val role: String,
     @SerializedName("is_checked_in")
     val isCheckedIn: Boolean,
     @SerializedName("is_active")
-    val isActive: Boolean = false
+    val isActive: Boolean = false,
+    @SerializedName("last_synced_at")
+    val lastSyncedAt: String? = null
 ) {
     fun toModel(): User = User(
         id = id,
         name = name,
+        email = email,
+        phone = phone,
         role = role,
         isCheckedIn = isCheckedIn,
-        isActive = isActive
+        isActive = isActive,
+        lastSyncedAt = lastSyncedAt
     )
 }
 

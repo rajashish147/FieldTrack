@@ -55,4 +55,11 @@ interface UserApi {
         @Query("id") id: String,
         @Body body: UpdateUserStatusDto
     ): Response<Unit>
+    
+    /** Update user's last_synced_at timestamp */
+    @PATCH("rest/v1/users")
+    suspend fun updateUserLastSync(
+        @Query("id") id: String,
+        @Body body: Map<String, String>
+    ): Response<Unit>
 }

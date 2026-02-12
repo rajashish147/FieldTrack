@@ -20,7 +20,7 @@ class ApprovalFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: AdminViewModel by activityViewModel()
-    private lateinit var adapter: EmployeeAdapter
+    private lateinit var adapter: PendingEmployeeAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -32,7 +32,7 @@ class ApprovalFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        adapter = EmployeeAdapter(
+        adapter = PendingEmployeeAdapter(
             onApprove = { viewModel.approveEmployee(it.id) },
             onDeactivate = { viewModel.deactivateEmployee(it.id) }
         )

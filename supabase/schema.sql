@@ -8,8 +8,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
     role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'admin')),
     is_checked_in BOOLEAN NOT NULL DEFAULT false,
+    is_active BOOLEAN NOT NULL DEFAULT false,
+    last_synced_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -52,6 +56,9 @@ CREATE INDEX idx_reports_user_id ON reports(user_id);
 CREATE INDEX idx_reports_date ON reports(date);
 CREATE INDEX idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX idx_expenses_status ON expenses(status);
+CREATE INDEX idx_users_name_search ON users USING gin(to_tsvector('english', name));
+CREATE INDEX idx_users_email_search ON users(email);
+CREATE INDEX idx_users_last_synced ON users(last_synced_at DESC);
 
 -- Row Level Security (RLS)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -83,6 +90,15 @@ CREATE POLICY "Users can update own check-in"
     ON users FOR UPDATE
     USING (auth.uid() = id)
     WITH CHECK (auth.uid() = id);
+
+-- Admins can update user status (is_active, role)
+CREATE POLICY "Admins can update user status"
+    ON users FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
 
 -- Location policies
 CREATE POLICY "Users can insert own locations"
@@ -163,3 +179,22 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Function to auto-update user's last_synced_at when locations are inserted
+CREATE OR REPLACE FUNCTION update_user_last_sync()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE users 
+  SET last_synced_at = NEW.timestamp 
+  WHERE id = NEW.user_id 
+    AND (last_synced_at IS NULL OR NEW.timestamp > last_synced_at);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update last_synced_at on location insert
+DROP TRIGGER IF EXISTS trigger_update_last_sync ON locations;
+CREATE TRIGGER trigger_update_last_sync
+AFTER INSERT ON locations
+FOR EACH ROW
+EXECUTE FUNCTION update_user_last_sync();

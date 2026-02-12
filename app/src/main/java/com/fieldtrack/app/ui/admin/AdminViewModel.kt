@@ -40,8 +40,16 @@ class AdminViewModel(
     private val expenseRepository: ExpenseRepository
 ) : ViewModel() {
 
+    private val _allEmployeesRaw = MutableLiveData<List<User>>()
+    
     private val _allEmployees = MutableLiveData<List<User>>()
     val allEmployees: LiveData<List<User>> = _allEmployees
+
+    private val _searchQuery = MutableLiveData("")
+    val searchQuery: LiveData<String> = _searchQuery
+
+    private val _selectedEmployee = MutableLiveData<User?>()
+    val selectedEmployee: LiveData<User?> = _selectedEmployee
 
     private val _pendingEmployees = MutableLiveData<List<User>>()
     val pendingEmployees: LiveData<List<User>> = _pendingEmployees
@@ -66,12 +74,39 @@ class AdminViewModel(
         _isLoading.value = true
         viewModelScope.launch {
             when (val result = adminRepository.getAllEmployees()) {
-                is NetworkResult.Success -> _allEmployees.value = result.data
+                is NetworkResult.Success -> {
+                    _allEmployeesRaw.value = result.data
+                    applySearchFilter()
+                }
                 is NetworkResult.Error -> _toastMessage.value = result.message
                 is NetworkResult.Loading -> { /* no-op */ }
             }
             _isLoading.value = false
         }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        applySearchFilter()
+    }
+
+    private fun applySearchFilter() {
+        val query = _searchQuery.value ?: ""
+        val rawList = _allEmployeesRaw.value ?: emptyList()
+        
+        _allEmployees.value = if (query.isBlank()) {
+            rawList
+        } else {
+            rawList.filter { it.matchesSearch(query) }
+        }
+    }
+
+    fun selectEmployee(user: User) {
+        _selectedEmployee.value = user
+    }
+
+    fun clearSelectedEmployee() {
+        _selectedEmployee.value = null
     }
 
     fun loadPendingEmployees() {
