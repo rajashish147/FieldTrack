@@ -49,9 +49,11 @@ class EmployeeAdapter(
                 )
             }
             
+            // Show sync time with health-based color
             binding.tvLastSync.text = user.getFormattedLastSync()
+            binding.tvLastSync.setTextColor(user.getSyncHealthColor())
             
-            // Show sync indicator if synced within the last hour
+            // Show sync indicator if synced within the last hour (HEALTHY status)
             val isRecentlySync = user.lastSyncedAt != null && try {
                 val syncTime = java.time.Instant.parse(user.lastSyncedAt)
                 val now = java.time.Instant.now()

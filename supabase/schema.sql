@@ -24,7 +24,15 @@ CREATE TABLE IF NOT EXISTS locations (
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     accuracy REAL NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    
+    -- Unique constraint for duplicate prevention (idempotency)
+    CONSTRAINT unique_location_point UNIQUE (user_id, timestamp, latitude, longitude),
+    
+    -- Validation constraints
+    CONSTRAINT valid_latitude CHECK (latitude >= -90 AND latitude <= 90),
+    CONSTRAINT valid_longitude CHECK (longitude >= -180 AND longitude <= 180),
+    CONSTRAINT valid_accuracy CHECK (accuracy > 0 AND accuracy < 10000)
 );
 
 -- Reports table
@@ -52,6 +60,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE INDEX idx_locations_user_id ON locations(user_id);
 CREATE INDEX idx_locations_timestamp ON locations(timestamp);
 CREATE INDEX idx_locations_user_timestamp ON locations(user_id, timestamp);
+CREATE INDEX idx_locations_dedup ON locations(user_id, timestamp, latitude, longitude);
 CREATE INDEX idx_reports_user_id ON reports(user_id);
 CREATE INDEX idx_reports_date ON reports(date);
 CREATE INDEX idx_expenses_user_id ON expenses(user_id);

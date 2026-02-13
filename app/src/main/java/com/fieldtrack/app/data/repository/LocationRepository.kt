@@ -1,7 +1,9 @@
 package com.fieldtrack.app.data.repository
 
+import android.util.Log
 import com.fieldtrack.app.data.local.dao.LocationDao
 import com.fieldtrack.app.data.local.entity.LocationEntity
+import com.fieldtrack.app.data.local.entity.SyncState
 import com.fieldtrack.app.data.model.Location
 import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.remote.SessionManager
@@ -20,12 +22,19 @@ class LocationRepository(
     private val userApi: UserApi,
     private val sessionManager: SessionManager
 ) {
+    companion object {
+        const val TAG = "LocationRepository"
+        const val MAX_SYNC_ATTEMPTS = 5
+        const val SYNC_TIMEOUT_MS = 5 * 60 * 1000L  // 5 minutes
+        const val BATCH_SIZE = 100
+    }
 
     /** Update the current user's check-in status on the server */
     suspend fun updateCheckInStatus(isCheckedIn: Boolean): NetworkResult<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                val userId = sessionManager.userId ?: return@withContext NetworkResult.Error("No user ID")
+                val userId = sessionManager.userId 
+                    ?: return@withContext NetworkResult.Error("No user ID")
                 val response = userApi.updateCheckInStatus(
                     id = "eq.$userId",
                     body = UpdateCheckInDto(isCheckedIn = isCheckedIn)
@@ -40,10 +49,132 @@ class LocationRepository(
             }
         }
 
-
     suspend fun saveLocationLocally(location: Location) {
         withContext(Dispatchers.IO) {
             locationDao.insert(LocationEntity.fromModel(location))
+        }
+    }
+
+    /**
+     * Hardened sync with deterministic state transitions.
+     * Implements: LOCAL_ONLY → SYNCING → SYNCED | FAILED | ABANDONED
+     */
+    suspend fun syncUnsyncedLocations(): NetworkResult<SyncResult> =
+        withContext(Dispatchers.IO) {
+            val userId = sessionManager.userId 
+                ?: return@withContext NetworkResult.Error("No user ID")
+            
+            try {
+                // 1. Reset stale SYNCING states (crash recovery)
+                val timeoutThreshold = System.currentTimeMillis() - SYNC_TIMEOUT_MS
+                locationDao.resetStaleSyncingState(timeoutThreshold)
+                
+                // 2. Get syncable locations (excludes SYNCING and ABANDONED)
+                val toSync = locationDao.getSyncableLocations(
+                    userId = userId,
+                    maxAttempts = MAX_SYNC_ATTEMPTS,
+                    batchSize = BATCH_SIZE
+                )
+                
+                if (toSync.isEmpty()) {
+                    Log.d(TAG, "No locations to sync")
+                    return@withContext NetworkResult.Success(SyncResult(0, 0, 0))
+                }
+                
+                Log.d(TAG, "Syncing ${toSync.size} locations")
+                
+                // 3. Mark as SYNCING (prevents concurrent syncs)
+                val ids = toSync.map { it.id }
+                locationDao.updateSyncState(ids, SyncState.SYNCING)
+                
+                // 4. Upload to server
+                val dtos = toSync.map { LocationDto.fromModel(it.toModel()) }
+                val response = locationApi.insertLocations(dtos)
+                
+                if (response.isSuccessful) {
+                    // 5. Mark as SYNCED (atomic transaction)
+                    locationDao.markAsSyncedNew(ids)
+                    
+                    // 6. Update user's last_synced_at
+                    updateUserLastSyncTime(userId)
+                    
+                    Log.d(TAG, "Successfully synced ${ids.size} locations")
+                    
+                    NetworkResult.Success(SyncResult(
+                        synced = ids.size,
+                        failed = 0,
+                        abandoned = 0
+                    ))
+                } else {
+                    // 7. Handle HTTP failure
+                    val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                    Log.w(TAG, "Sync failed: $errorMsg")
+                    
+                    handleSyncFailure(toSync, errorMsg)
+                    
+                    NetworkResult.Error(errorMsg)
+                }
+            } catch (e: Exception) {
+                // 8. Handle exception
+                val errorMsg = e.message ?: "Unknown error"
+                Log.e(TAG, "Sync exception: $errorMsg", e)
+                
+                // Get locations again (might have been updated)
+                val toSync = locationDao.getSyncableLocations(
+                    userId = userId,
+                    maxAttempts = MAX_SYNC_ATTEMPTS,
+                    batchSize = BATCH_SIZE
+                )
+                
+                handleSyncFailure(toSync, errorMsg)
+                
+                NetworkResult.Error(errorMsg)
+            }
+        }
+
+    /**
+     * Handle sync failure: increment attempts, set FAILED or ABANDONED.
+     */
+    private suspend fun handleSyncFailure(
+        locations: List<LocationEntity>,
+        errorMessage: String
+    ) {
+        val now = System.currentTimeMillis()
+        
+        locations.forEach { location ->
+            val newAttempts = location.syncAttempts + 1
+            val newState = if (newAttempts >= MAX_SYNC_ATTEMPTS) {
+                SyncState.ABANDONED
+            } else {
+                SyncState.FAILED
+            }
+            
+            locationDao.updateSyncFailure(
+                id = location.id,
+                state = newState,
+                attempts = newAttempts,
+                errorMessage = errorMessage.take(255),  // Limit error message length
+                attemptedAt = now
+            )
+            
+            if (newState == SyncState.ABANDONED) {
+                Log.w(TAG, "Location ${location.id} abandoned after $newAttempts attempts")
+            }
+        }
+    }
+
+    /**
+     * Update user's last_synced_at timestamp.
+     */
+    private suspend fun updateUserLastSyncTime(userId: String) {
+        try {
+            val currentTime = java.time.Instant.now().toString()
+            userApi.updateUserLastSync(
+                id = "eq.$userId",
+                body = mapOf("last_synced_at" to currentTime)
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to update last_synced_at: ${e.message}")
         }
     }
 
@@ -62,40 +193,28 @@ class LocationRepository(
             entities.map { it.toModel() }
         }
 
-    suspend fun syncUnsyncedLocations(): NetworkResult<Unit> =
+    suspend fun getUnsyncedCount(): Int = withContext(Dispatchers.IO) {
+        val userId = sessionManager.userId ?: return@withContext 0
+        locationDao.getUnsyncedCount(userId)
+    }
+
+    suspend fun getAbandonedLocations(): List<Location> = withContext(Dispatchers.IO) {
+        val userId = sessionManager.userId ?: return@withContext emptyList()
+        locationDao.getAbandonedLocations(userId).map { it.toModel() }
+    }
+
+    suspend fun retryAbandonedLocations(locationIds: List<String>) {
         withContext(Dispatchers.IO) {
-            try {
-                val userId = sessionManager.userId
-                    ?: return@withContext NetworkResult.Error("No user ID")
-                val unsynced = locationDao.getUnsyncedLocations(userId)
-                if (unsynced.isEmpty()) return@withContext NetworkResult.Success(Unit)
-
-                val dtos = unsynced.map { LocationDto.fromModel(it.toModel()) }
-                val response = locationApi.insertLocations(dtos)
-
-                if (response.isSuccessful) {
-                    locationDao.markAsSynced(unsynced.map { it.id })
-                    
-                    // Update user's last_synced_at timestamp
-                    try {
-                        val currentTime = java.time.Instant.now().toString()
-                        userApi.updateUserLastSync(
-                            id = "eq.$userId",
-                            body = mapOf("last_synced_at" to currentTime)
-                        )
-                    } catch (e: Exception) {
-                        // Log but don't fail the sync if timestamp update fails
-                        android.util.Log.w("LocationRepository", "Failed to update last_synced_at: ${e.message}")
-                    }
-                    
-                    NetworkResult.Success(Unit)
-                } else {
-                    NetworkResult.Error("Sync failed: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                NetworkResult.Error(e.message ?: "Sync error")
-            }
+            locationDao.retryAbandonedLocations(locationIds)
         }
+    }
+
+    suspend fun cleanupOldSyncedLocations(beforeTimestamp: String) {
+        withContext(Dispatchers.IO) {
+            val userId = sessionManager.userId ?: return@withContext
+            locationDao.deleteOldSyncedLocations(beforeTimestamp, userId)
+        }
+    }
 
     suspend fun fetchRemoteLocations(userId: String): NetworkResult<List<Location>> =
         withContext(Dispatchers.IO) {
@@ -132,16 +251,4 @@ class LocationRepository(
                 NetworkResult.Error(e.message ?: "Unknown error")
             }
         }
-
-    suspend fun getUnsyncedCount(): Int = withContext(Dispatchers.IO) {
-        val userId = sessionManager.userId ?: return@withContext 0
-        locationDao.getUnsyncedCount(userId)
-    }
-
-    suspend fun cleanupOldSyncedLocations(beforeTimestamp: String) {
-        withContext(Dispatchers.IO) {
-            val userId = sessionManager.userId ?: return@withContext
-            locationDao.deleteOldSyncedLocations(beforeTimestamp, userId)
-        }
-    }
 }

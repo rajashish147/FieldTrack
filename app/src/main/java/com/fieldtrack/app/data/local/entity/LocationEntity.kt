@@ -14,6 +14,15 @@ data class LocationEntity(
     val longitude: Double,
     val accuracy: Float,
     val timestamp: String,
+    
+    // Enhanced sync tracking (replaces isSynced)
+    val syncState: SyncState = SyncState.LOCAL_ONLY,
+    val syncAttempts: Int = 0,
+    val lastSyncAttemptAt: Long? = null,
+    val syncErrorMessage: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    
+    // Keep old field for migration compatibility (will be removed in future version)
     val isSynced: Boolean = false
 ) {
     fun toModel(): Location = Location(
@@ -26,7 +35,7 @@ data class LocationEntity(
     )
 
     companion object {
-        fun fromModel(model: Location, synced: Boolean = false): LocationEntity =
+        fun fromModel(model: Location): LocationEntity =
             LocationEntity(
                 id = model.id,
                 userId = model.userId,
@@ -34,7 +43,12 @@ data class LocationEntity(
                 longitude = model.longitude,
                 accuracy = model.accuracy,
                 timestamp = model.timestamp,
-                isSynced = synced
+                syncState = SyncState.LOCAL_ONLY,
+                syncAttempts = 0,
+                lastSyncAttemptAt = null,
+                syncErrorMessage = null,
+                createdAt = System.currentTimeMillis(),
+                isSynced = false
             )
     }
 }

@@ -64,7 +64,15 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
             )
         )
         
+        // Show sync health with color-coded indicator
         binding.tvLastSync.text = user.getFormattedLastSync()
+        binding.tvLastSync.setTextColor(user.getSyncHealthColor())
+        
+        // Show sync freshness indicator
+        val freshnessIndicator = user.getSyncFreshnessIndicator()
+        if (freshnessIndicator != user.getFormattedLastSync()) {
+            binding.tvLastSync.text = "${user.getFormattedLastSync()} ($freshnessIndicator)"
+        }
         
         binding.tvUserId.text = user.id
     }

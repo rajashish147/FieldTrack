@@ -13,7 +13,9 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "fieldtrack_db"
-        ).fallbackToDestructiveMigration().build()
+        )
+            .addMigrations(AppDatabase.MIGRATION_1_2)  // Add sync state machine migration
+            .build()
     }
 
     single { get<AppDatabase>().locationDao() }
