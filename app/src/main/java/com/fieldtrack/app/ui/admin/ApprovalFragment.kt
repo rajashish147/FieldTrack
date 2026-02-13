@@ -40,6 +40,8 @@ class ApprovalFragment : Fragment() {
         binding.rvPending.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPending.adapter = adapter
 
+        setupSearch()
+
         binding.swipeRefresh.setOnRefreshListener {
             viewModel.loadPendingEmployees()
         }
@@ -48,10 +50,37 @@ class ApprovalFragment : Fragment() {
         viewModel.loadPendingEmployees()
     }
 
+    private fun setupSearch() {
+        binding.etSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            
+            override fun afterTextChanged(s: android.text.Editable?) {
+                viewModel.updatePendingSearchQuery(s?.toString() ?: "")
+            }
+        })
+        
+        binding.ivClearSearch.setOnClickListener {
+            binding.etSearch.text?.clear()
+        }
+    }
+
     private fun observeViewModel() {
         viewModel.pendingEmployees.observe(viewLifecycleOwner) { pending ->
             adapter.submitList(pending)
-            binding.tvNoPending.visibility = if (pending.isEmpty()) View.VISIBLE else View.GONE
+            val isEmpty = pending.isEmpty()
+            binding.tvNoPending.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            
+            val searchQuery = viewModel.pendingSearchQuery.value ?: ""
+            binding.tvNoPending.text = if (searchQuery.isNotBlank()) {
+                "No approvals match \"$searchQuery\""
+            } else {
+                "No pending approvals"
+            }
+        }
+
+        viewModel.pendingSearchQuery.observe(viewLifecycleOwner) { query ->
+            binding.ivClearSearch.visibility = if (query.isNotBlank()) View.VISIBLE else View.GONE
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->

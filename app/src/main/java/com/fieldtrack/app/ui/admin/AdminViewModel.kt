@@ -49,17 +49,27 @@ class AdminViewModel(
     private val _searchQuery = MutableLiveData("")
     val searchQuery: LiveData<String> = _searchQuery
 
-    private val _selectedEmployee = MutableLiveData<User?>()
-    val selectedEmployee: LiveData<User?> = _selectedEmployee
-
+    private val _pendingEmployeesRaw = MutableLiveData<List<User>>()
+    
     private val _pendingEmployees = MutableLiveData<List<User>>()
     val pendingEmployees: LiveData<List<User>> = _pendingEmployees
+
+    private val _pendingSearchQuery = MutableLiveData("")
+    val pendingSearchQuery: LiveData<String> = _pendingSearchQuery
+
+    private val _selectedEmployee = MutableLiveData<User?>()
+    val selectedEmployee: LiveData<User?> = _selectedEmployee
 
     private val _employeeLocations = MutableLiveData<List<EmployeeLocation>>()
     val employeeLocations: LiveData<List<EmployeeLocation>> = _employeeLocations
 
+    private val _expensesRaw = MutableLiveData<List<Expense>>()
+    
     private val _expenses = MutableLiveData<List<Expense>>()
     val expenses: LiveData<List<Expense>> = _expenses
+
+    private val _expenseSearchQuery = MutableLiveData("")
+    val expenseSearchQuery: LiveData<String> = _expenseSearchQuery
 
     /** Map of userId → employee name for display in expense cards */
     private val _employeeNames = MutableLiveData<Map<String, String>>(emptyMap())
@@ -91,6 +101,16 @@ class AdminViewModel(
         applySearchFilter()
     }
 
+    fun updatePendingSearchQuery(query: String) {
+        _pendingSearchQuery.value = query
+        applyPendingSearchFilter()
+    }
+
+    fun updateExpenseSearchQuery(query: String) {
+        _expenseSearchQuery.value = query
+        applyExpenseSearchFilter()
+    }
+
     private fun applySearchFilter() {
         val query = _searchQuery.value ?: ""
         val rawList = _allEmployeesRaw.value ?: emptyList()
@@ -99,6 +119,32 @@ class AdminViewModel(
             rawList
         } else {
             rawList.filter { it.matchesSearch(query) }
+        }
+    }
+
+    private fun applyPendingSearchFilter() {
+        val query = _pendingSearchQuery.value ?: ""
+        val rawList = _pendingEmployeesRaw.value ?: emptyList()
+        
+        _pendingEmployees.value = if (query.isBlank()) {
+            rawList
+        } else {
+            rawList.filter { it.matchesSearch(query) }
+        }
+    }
+
+    private fun applyExpenseSearchFilter() {
+        val query = _expenseSearchQuery.value ?: ""
+        val rawList = _expensesRaw.value ?: emptyList()
+        val names = _employeeNames.value ?: emptyMap()
+        
+        _expenses.value = if (query.isBlank()) {
+            rawList
+        } else {
+            rawList.filter { expense ->
+                val employeeName = names[expense.userId] ?: expense.userId
+                expense.matchesSearch(query, employeeName)
+            }
         }
     }
 
@@ -114,7 +160,10 @@ class AdminViewModel(
         _isLoading.value = true
         viewModelScope.launch {
             when (val result = adminRepository.getPendingEmployees()) {
-                is NetworkResult.Success -> _pendingEmployees.value = result.data
+                is NetworkResult.Success -> {
+                    _pendingEmployeesRaw.value = result.data
+                    applyPendingSearchFilter()
+                }
                 is NetworkResult.Error -> _toastMessage.value = result.message
                 is NetworkResult.Loading -> { /* no-op */ }
             }
@@ -221,7 +270,8 @@ class AdminViewModel(
 
             when (val result = expenseRepository.fetchAllExpenses()) {
                 is NetworkResult.Success -> {
-                    _expenses.value = result.data
+                    _expensesRaw.value = result.data
+                    applyExpenseSearchFilter()
                 }
                 is NetworkResult.Error -> {
                     _toastMessage.value = result.message

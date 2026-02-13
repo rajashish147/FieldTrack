@@ -8,4 +8,13 @@ data class Expense(
     val billImageUrl: String,
     val status: String,
     val timestamp: String
-)
+) {
+    fun matchesSearch(query: String, employeeName: String): Boolean {
+        if (query.isBlank()) return true
+        val lowerQuery = query.lowercase()
+        return employeeName.lowercase().contains(lowerQuery) ||
+                category.lowercase().contains(lowerQuery) ||
+                amount.toString().contains(query) ||
+                status.lowercase().contains(lowerQuery)
+    }
+}

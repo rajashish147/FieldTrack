@@ -32,6 +32,7 @@ class AdminExpenseFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        setupSearch()
         setupSwipeRefresh()
         observeViewModel()
         viewModel.loadAllExpenses()
@@ -40,6 +41,21 @@ class AdminExpenseFragment : Fragment() {
     private fun setupRecyclerView() {
         // Adapter is recreated when employee names arrive
         binding.rvExpenses.layoutManager = LinearLayoutManager(requireContext())
+    }
+
+    private fun setupSearch() {
+        binding.etSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            
+            override fun afterTextChanged(s: android.text.Editable?) {
+                viewModel.updateExpenseSearchQuery(s?.toString() ?: "")
+            }
+        })
+        
+        binding.ivClearSearch.setOnClickListener {
+            binding.etSearch.text?.clear()
+        }
     }
 
     private fun setupSwipeRefresh() {
@@ -66,7 +82,19 @@ class AdminExpenseFragment : Fragment() {
 
         viewModel.expenses.observe(viewLifecycleOwner) { expenses ->
             expenseAdapter?.submitList(expenses)
-            binding.tvNoExpenses.visibility = if (expenses.isEmpty()) View.VISIBLE else View.GONE
+            val isEmpty = expenses.isEmpty()
+            binding.tvNoExpenses.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            
+            val searchQuery = viewModel.expenseSearchQuery.value ?: ""
+            binding.tvNoExpenses.text = if (searchQuery.isNotBlank()) {
+                "No expenses match \"$searchQuery\""
+            } else {
+                "No expenses submitted yet"
+            }
+        }
+
+        viewModel.expenseSearchQuery.observe(viewLifecycleOwner) { query ->
+            binding.ivClearSearch.visibility = if (query.isNotBlank()) View.VISIBLE else View.GONE
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
