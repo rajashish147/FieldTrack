@@ -18,7 +18,7 @@ import org.koin.android.ext.android.inject
  * Navigation destinations:
  *   - EmployeeListFragment (view all employees)
  *   - ApprovalFragment (approve/deactivate employees)
- *   - LiveTrackingFragment (TODO: GPS live tracking)
+ *   - LiveTrackingFragment (GPS live tracking)
  */
 class AdminHomeActivity : AppCompatActivity() {
 

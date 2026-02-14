@@ -19,8 +19,8 @@ import com.fieldtrack.app.util.showToast
  *
  * Navigation destinations:
  *   - AttendanceFragment (check-in/out + timer)
- *   - MyLocationFragment (TODO: GPS map view)
- *   - EmployeeExpenseFragment (TODO: expense submission)
+ *   - MyLocationFragment (GPS map view)
+ *   - EmployeeExpenseFragment (expense submission)
  */
 class EmployeeHomeActivity : AppCompatActivity() {
 

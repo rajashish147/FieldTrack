@@ -25,9 +25,6 @@ import java.util.Locale
 /**
  * AttendanceFragment — replaces old HomeFragment.
  * Handles check-in/out, work timer, and data sync.
- *
- * TODO: Add attendance history view
- * TODO: Add geofencing for office check-in validation
  */
 class AttendanceFragment : Fragment() {
 
