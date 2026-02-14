@@ -7,7 +7,7 @@
         android:title="@string/employees" />
 
     <item
-        android:id="@+id/approvalFragment"
+        android:id="@+id/unifiedApprovalsFragment"
         android:icon="@drawable/ic_approval"
         android:title="@string/approvals" />
 

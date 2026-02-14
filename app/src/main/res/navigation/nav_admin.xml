@@ -12,10 +12,10 @@
         tools:layout="@layout/fragment_employee_list" />
 
     <fragment
-        android:id="@+id/approvalFragment"
-        android:name="com.fieldtrack.app.ui.admin.ApprovalFragment"
+        android:id="@+id/unifiedApprovalsFragment"
+        android:name="com.fieldtrack.app.ui.admin.UnifiedApprovalsFragment"
         android:label="@string/approvals"
-        tools:layout="@layout/fragment_approval" />
+        tools:layout="@layout/fragment_unified_approvals" />
 
     <fragment
         android:id="@+id/liveTrackingFragment"

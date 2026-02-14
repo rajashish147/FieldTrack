@@ -21,6 +21,26 @@ class AdminExpenseFragment : Fragment() {
 
     private val viewModel: AdminViewModel by activityViewModel()
     private var expenseAdapter: AdminExpenseAdapter? = null
+    
+    private var showPendingOnly: Boolean = false
+
+    companion object {
+        private const val ARG_SHOW_PENDING_ONLY = "show_pending_only"
+        
+        fun newInstance(showPendingOnly: Boolean = false): AdminExpenseFragment {
+            return AdminExpenseFragment().apply {
+                arguments = Bundle().apply {
+                    putBoolean(ARG_SHOW_PENDING_ONLY, showPendingOnly)
+                }
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Read argument once in onCreate to avoid reapplying on config changes
+        showPendingOnly = arguments?.getBoolean(ARG_SHOW_PENDING_ONLY, false) ?: false
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -31,11 +51,22 @@ class AdminExpenseFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
         setupRecyclerView()
         setupStatusFilter()
         setupSearch()
         setupSwipeRefresh()
         observeViewModel()
+        
+        // Apply pending-only mode if enabled (only on initial setup, not on resume)
+        if (showPendingOnly && savedInstanceState == null) {
+            viewModel.updateExpenseStatusFilter("pending")
+            binding.chipGroupStatus.visibility = View.GONE
+        } else if (showPendingOnly) {
+            // On config change, just hide chips (filter state preserved by ViewModel)
+            binding.chipGroupStatus.visibility = View.GONE
+        }
+        
         viewModel.loadAllExpenses()
     }
 

@@ -84,6 +84,12 @@ class AdminViewModel(
     private val _toastMessage = MutableLiveData<String?>()
     val toastMessage: LiveData<String?> = _toastMessage
 
+    private val _pendingEmployeeCount = MutableLiveData(0)
+    val pendingEmployeeCount: LiveData<Int> = _pendingEmployeeCount
+
+    private val _pendingExpenseCount = MutableLiveData(0)
+    val pendingExpenseCount: LiveData<Int> = _pendingExpenseCount
+
     fun loadAllEmployees() {
         _isLoading.value = true
         viewModelScope.launch {
@@ -184,6 +190,7 @@ class AdminViewModel(
                 is NetworkResult.Success -> {
                     _pendingEmployeesRaw.value = result.data
                     applyPendingSearchFilter()
+                    _pendingEmployeeCount.value = result.data.size
                 }
                 is NetworkResult.Error -> _toastMessage.value = result.message
                 is NetworkResult.Loading -> { /* no-op */ }
@@ -293,6 +300,12 @@ class AdminViewModel(
                 is NetworkResult.Success -> {
                     _expensesRaw.value = result.data
                     applyExpenseSearchFilter()
+                    
+                    // Update pending expense count
+                    val pendingCount = result.data.count { 
+                        it.status == com.fieldtrack.app.util.Constants.EXPENSE_STATUS_PENDING 
+                    }
+                    _pendingExpenseCount.value = pendingCount
                 }
                 is NetworkResult.Error -> {
                     _toastMessage.value = result.message
