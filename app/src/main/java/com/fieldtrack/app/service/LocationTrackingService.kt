@@ -120,6 +120,10 @@ class LocationTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand called with action: ${intent?.action}")
         
+        // CRITICAL: Must call startForeground() IMMEDIATELY for foreground services
+        // Android requires this within 5 seconds, even if we stop the service later
+        startForeground(Constants.NOTIFICATION_ID_LOCATION, createNotification("Initializing location tracking..."))
+        
         when (intent?.action) {
             ACTION_START -> {
                 if (!isTracking) {

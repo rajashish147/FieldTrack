@@ -64,4 +64,5 @@ val networkModule = module {
     single { get<Retrofit>().create(ReportApi::class.java) }
     single { get<Retrofit>().create(ExpenseApi::class.java) }
     single { get<Retrofit>().create(StorageApi::class.java) }
+    single { get<Retrofit>().create(com.fieldtrack.app.data.remote.api.AttendanceApi::class.java) }
 }

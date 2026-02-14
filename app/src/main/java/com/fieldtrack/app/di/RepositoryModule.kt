@@ -14,4 +14,5 @@ val repositoryModule = module {
     single { ReportRepository(get(), get(), get()) }
     single { ExpenseRepository(get(), get(), get()) }
     single { AdminRepository(get()) }
+    single { com.fieldtrack.app.data.repository.AttendanceSessionRepository(get(), get()) }
 }
