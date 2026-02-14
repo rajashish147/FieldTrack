@@ -38,7 +38,19 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun bindEmployeeData(user: com.fieldtrack.app.data.model.User) {
+        // Profile Header
         binding.tvEmployeeName.text = user.name.ifBlank { "Unnamed Employee" }
+        binding.tvRole.text = user.role.replaceFirstChar { it.uppercase() }
+        
+        // Active/Inactive Status Badge
+        binding.tvStatus.text = if (user.isActive) "Active" else "Inactive"
+        binding.tvStatus.setTextColor(
+            androidx.core.content.ContextCompat.getColor(
+                requireContext(),
+                if (user.isActive) com.fieldtrack.app.R.color.status_approved 
+                else com.fieldtrack.app.R.color.status_rejected
+            )
+        )
         
         // Load profile image
         if (!user.profileImageUrl.isNullOrBlank()) {
@@ -46,7 +58,6 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
                 crossfade(true)
                 placeholder(com.fieldtrack.app.R.drawable.bg_image_placeholder)
                 error(com.fieldtrack.app.R.drawable.bg_image_placeholder)
-                // Add Supabase auth headers for private storage
                 addHeader("Authorization", "Bearer ${com.fieldtrack.app.BuildConfig.SUPABASE_ANON_KEY}")
                 addHeader("apikey", com.fieldtrack.app.BuildConfig.SUPABASE_ANON_KEY)
             }
@@ -57,9 +68,11 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
                 showFullImage(user.profileImageUrl)
             }
         } else {
-            binding.ivProfileImage.visibility = View.GONE
+            binding.ivProfileImage.setImageResource(com.fieldtrack.app.R.drawable.bg_image_placeholder)
+            binding.ivProfileImage.visibility = View.VISIBLE
         }
         
+        // Contact Information
         if (user.email.isNullOrBlank()) {
             binding.llEmail.visibility = View.GONE
         } else {
@@ -74,28 +87,53 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
             binding.tvPhone.text = user.phone
         }
         
-        binding.tvRole.text = user.role.replaceFirstChar { it.uppercase() }
-        
-        binding.tvStatus.text = if (user.isActive) "Active" else "Inactive"
-        binding.tvStatus.setTextColor(
+        // Check-in Status
+        binding.tvCheckInStatus.text = if (user.isCheckedIn) "✓ Checked In" else "✗ Checked Out"
+        binding.tvCheckInStatus.setTextColor(
             androidx.core.content.ContextCompat.getColor(
                 requireContext(),
-                if (user.isActive) com.fieldtrack.app.R.color.status_approved 
-                else com.fieldtrack.app.R.color.status_rejected
+                if (user.isCheckedIn) com.fieldtrack.app.R.color.status_approved 
+                else com.fieldtrack.app.R.color.on_surface_variant
             )
         )
         
-        // Show sync health with color-coded indicator
-        binding.tvLastSync.text = user.getFormattedLastSync()
-        binding.tvLastSync.setTextColor(user.getSyncHealthColor())
-        
-        // Show sync freshness indicator
-        val freshnessIndicator = user.getSyncFreshnessIndicator()
-        if (freshnessIndicator != user.getFormattedLastSync()) {
-            binding.tvLastSync.text = "${user.getFormattedLastSync()} ($freshnessIndicator)"
+        // Sync Health
+        val syncHealthStatus = user.getSyncHealthStatus()
+        binding.tvSyncHealthLabel.text = when (syncHealthStatus) {
+            com.fieldtrack.app.data.model.SyncHealthStatus.HEALTHY -> "Healthy"
+            com.fieldtrack.app.data.model.SyncHealthStatus.STALE -> "Stale"
+            com.fieldtrack.app.data.model.SyncHealthStatus.VERY_STALE -> "Very Stale"
+            com.fieldtrack.app.data.model.SyncHealthStatus.NEVER_SYNCED -> "Never Synced"
+            com.fieldtrack.app.data.model.SyncHealthStatus.UNKNOWN -> "Unknown"
         }
         
-        binding.tvUserId.text = user.id
+        // Sync health color indicator
+        val syncColor = user.getSyncHealthColor()
+        binding.viewSyncIndicator.setBackgroundColor(syncColor)
+        
+        // Last sync timestamp with freshness
+        val formattedSync = user.getFormattedLastSync()
+        val freshnessIndicator = user.getSyncFreshnessIndicator()
+        
+        binding.tvLastSync.text = if (freshnessIndicator != formattedSync) {
+            "$formattedSync ($freshnessIndicator)"
+        } else {
+            formattedSync
+        }
+        binding.tvLastSync.setTextColor(syncColor)
+        
+        // Context-aware actions
+        // View on Map button - only show if employee has location data
+        val hasLocation = user.lastSyncedAt?.isNotBlank() == true
+        binding.btnViewMap.visibility = if (hasLocation) View.VISIBLE else View.GONE
+        
+        if (hasLocation) {
+            binding.btnViewMap.setOnClickListener {
+                // Navigate to map - implementation depends on navigation setup
+                // For now, just dismiss and let parent handle navigation
+                dismiss()
+            }
+        }
     }
     
     private fun showFullImage(imageUrl: String) {
