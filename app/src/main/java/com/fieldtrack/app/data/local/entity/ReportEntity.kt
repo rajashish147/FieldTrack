@@ -1,11 +1,19 @@
 package com.fieldtrack.app.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.fieldtrack.app.data.model.Report
 import java.util.UUID
 
-@Entity(tableName = "reports")
+@Entity(
+    tableName = "reports",
+    indices = [
+        Index(value = ["userId"]),
+        Index(value = ["syncState"]),
+        Index(value = ["date"])
+    ]
+)
 data class ReportEntity(
     @PrimaryKey
     val id: String = UUID.randomUUID().toString(),

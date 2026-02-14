@@ -18,7 +18,7 @@ import com.fieldtrack.app.data.local.entity.ReportEntity
         ReportEntity::class,
         ExpenseEntity::class
     ],
-    version = 3,  // Incremented for report/expense sync state
+    version = 4,  // Incremented for database indexes
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -135,6 +135,30 @@ abstract class AppDatabase : RoomDatabase() {
                         ELSE 'LOCAL_ONLY' 
                     END
                 """)
+            }
+        }
+        
+        /**
+         * Migration from version 3 to 4: Add database indexes for performance optimization.
+         * Indexes are created on frequently queried columns to speed up sync operations.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Create indexes for locations table
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_locations_userId ON locations(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_locations_timestamp ON locations(timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_locations_syncState ON locations(syncState)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_locations_userId_syncState ON locations(userId, syncState)")
+                
+                // Create indexes for reports table
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_reports_userId ON reports(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_reports_syncState ON reports(syncState)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_reports_date ON reports(date)")
+                
+                // Create indexes for expenses table
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_userId ON expenses(userId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_syncState ON expenses(syncState)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_status ON expenses(status)")
             }
         }
     }

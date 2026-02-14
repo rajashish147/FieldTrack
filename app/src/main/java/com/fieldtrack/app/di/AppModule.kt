@@ -17,7 +17,8 @@ val appModule = module {
         )
             .addMigrations(
                 AppDatabase.MIGRATION_1_2,  // Add sync state machine to locations
-                AppDatabase.MIGRATION_2_3   // Add sync state machine to reports/expenses
+                AppDatabase.MIGRATION_2_3,  // Add sync state machine to reports/expenses
+                AppDatabase.MIGRATION_3_4   // Add database indexes for performance
             )
             .build()
     }
