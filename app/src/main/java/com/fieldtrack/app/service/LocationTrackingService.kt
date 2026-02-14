@@ -25,6 +25,7 @@ import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.ui.dashboard.DashboardActivity
+import com.fieldtrack.app.ui.employee.EmployeeHomeActivity
 import com.fieldtrack.app.util.Constants
 import com.fieldtrack.app.util.LocationUtils
 import com.fieldtrack.app.util.SecurityUtils
@@ -120,12 +121,12 @@ class LocationTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand called with action: ${intent?.action}")
         
-        // CRITICAL: Must call startForeground() IMMEDIATELY for foreground services
-        // Android requires this within 5 seconds, even if we stop the service later
-        startForeground(Constants.NOTIFICATION_ID_LOCATION, createNotification("Initializing location tracking..."))
-        
         when (intent?.action) {
             ACTION_START -> {
+                // CRITICAL: Must call startForeground() IMMEDIATELY for foreground services
+                // Android requires this within 5 seconds
+                startForeground(Constants.NOTIFICATION_ID_LOCATION, createNotification("Initializing location tracking..."))
+                
                 if (!isTracking) {
                     if (validatePreconditions()) {
                         startTracking()
@@ -139,12 +140,17 @@ class LocationTrackingService : Service() {
                 return START_STICKY
             }
             ACTION_STOP -> {
+                // Don't call startForeground() when stopping - just stop immediately
                 stopTrackingWithReason(StopReason.USER_CHECKOUT)
                 return START_NOT_STICKY
             }
             else -> {
                 // Service restarted by OS after being killed (START_STICKY)
                 Log.d(TAG, "Service restarted by OS")
+                
+                // Call startForeground() for OS restart
+                startForeground(Constants.NOTIFICATION_ID_LOCATION, createNotification("Initializing location tracking..."))
+                
                 if (validatePreconditions()) {
                     Log.d(TAG, "Preconditions valid, resuming tracking")
                     if (!isTracking) {
@@ -323,6 +329,9 @@ class LocationTrackingService : Service() {
     private fun stopTrackingWithReason(reason: StopReason) {
         Log.i(TAG, "Stopping service with reason: $reason")
         
+        // Mark as not tracking immediately to prevent race conditions
+        isTracking = false
+        
         // Update state before stopping
         updateState(ServiceState.Stopped(reason, System.currentTimeMillis()))
         
@@ -338,6 +347,11 @@ class LocationTrackingService : Service() {
         // Unregister monitors
         unregisterMonitors()
         
+        // Clear check-in flag if stopped due to error
+        if (reason != StopReason.USER_CHECKOUT && reason != StopReason.USER_LOGOUT) {
+            sessionManager.isCheckedIn = false
+        }
+        
         // Final sync (best effort)
         serviceScope.launch {
             try {
@@ -350,18 +364,15 @@ class LocationTrackingService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error during final sync", e)
             } finally {
-                // Stop foreground and service
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                // Only stop service if tracking hasn't restarted
+                if (!isTracking) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                } else {
+                    Log.d(TAG, "Service restarted during shutdown, skipping stopSelf()")
+                }
             }
         }
-        
-        // Clear check-in flag if stopped due to error
-        if (reason != StopReason.USER_CHECKOUT && reason != StopReason.USER_LOGOUT) {
-            sessionManager.isCheckedIn = false
-        }
-        
-        isTracking = false
     }
 
     private fun acquireWakeLock() {
@@ -739,20 +750,43 @@ class LocationTrackingService : Service() {
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, DashboardActivity::class.java),
+            Intent(this, EmployeeHomeActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        
+        val workDuration = formatWorkDuration()
+        val contentText = "Working for $workDuration — Tap to review"
+        val bigText = "Active Work Session\nWorking for $workDuration\nLast update: $lastTime"
 
         return NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL_LOCATION)
-            .setContentTitle("FieldTrack - Tracking Active")
-            .setContentText("Last update: $lastTime")
-            .setSmallIcon(R.drawable.ic_location_on)
+            .setContentTitle("Active Work Session")
+            .setContentText(contentText)
+            .setSmallIcon(R.drawable.ic_tracking)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setSilent(true)
-            .setColor(getColor(R.color.status_approved))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setColor(getColor(R.color.session_active_accent))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .addAction(createStopAction())
             .build()
+    }
+    
+    /**
+     * Formats work duration from check-in time.
+     */
+    private fun formatWorkDuration(): String {
+        val checkInTime = sessionManager.checkInTime
+        if (checkInTime <= 0L) {
+            return "00:00:00"
+        }
+        
+        val elapsed = System.currentTimeMillis() - checkInTime
+        val totalSeconds = elapsed / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
     
     /**

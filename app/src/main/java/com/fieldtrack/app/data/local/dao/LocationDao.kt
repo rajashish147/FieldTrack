@@ -96,12 +96,14 @@ interface LocationDao {
     suspend fun resetStaleSyncingState(timeoutThreshold: Long)
 
     /**
-     * Get count of unsynced locations for UI.
+     * Get count of unsynced locations (for UI badge).
+     * Matches getSyncableLocations criteria - only counts locations that will actually be synced.
      */
     @Query("""
         SELECT COUNT(*) FROM locations 
         WHERE userId = :userId 
-        AND syncState != 'SYNCED'
+        AND syncState IN ('LOCAL_ONLY', 'FAILED')
+        AND syncAttempts < 5
     """)
     suspend fun getUnsyncedCount(userId: String): Int
 

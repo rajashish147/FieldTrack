@@ -1,12 +1,15 @@
 package com.fieldtrack.app.ui.employee
 
+import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.fieldtrack.app.R
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.databinding.FragmentAttendanceBinding
 import com.fieldtrack.app.service.LocationTrackingService
@@ -33,6 +36,8 @@ class AttendanceFragment : Fragment() {
 
     private val viewModel: EmployeeHomeViewModel by activityViewModel()
     private val sessionManager: SessionManager by inject()
+    
+    private var pulseAnimator: ObjectAnimator? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -97,8 +102,7 @@ class AttendanceFragment : Fragment() {
             .setMessage("Your location will be tracked while checked in. Do you consent?")
             .setPositiveButton("Accept") { _, _ ->
                 viewModel.checkIn()
-                startLocationService()
-                LocationSyncWorker.schedule(requireContext())
+                // Service will start automatically via isCheckedIn observer
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -106,8 +110,7 @@ class AttendanceFragment : Fragment() {
 
     private fun attemptCheckOut() {
         viewModel.checkOut()
-        stopLocationService()
-        LocationSyncWorker.cancel(requireContext())
+        // Service will stop automatically via isCheckedIn observer
     }
 
     private fun startLocationService() {
@@ -145,6 +148,53 @@ class AttendanceFragment : Fragment() {
             binding.tvStatus.text = if (isCheckedIn) "Checked In" else "Checked Out"
             binding.tvWorkDuration.visibility = if (isCheckedIn) View.VISIBLE else View.GONE
             binding.tvCheckInTime.visibility = if (isCheckedIn) View.VISIBLE else View.GONE
+            
+            // Phase 1: Visual status reinforcement
+            if (isCheckedIn) {
+                // Tint card background
+                binding.cardStatus.setCardBackgroundColor(
+                    ContextCompat.getColor(requireContext(), R.color.session_active_tint)
+                )
+                // Change status text color
+                binding.tvStatus.setTextColor(
+                    ContextCompat.getColor(requireContext(), R.color.session_active_accent)
+                )
+                // Show and animate session dot
+                binding.viewSessionDot.visibility = View.VISIBLE
+                startPulseAnimation()
+                // Style check-out button
+                binding.btnCheckInOut.setBackgroundColor(
+                    ContextCompat.getColor(requireContext(), R.color.session_active_accent)
+                )
+                binding.btnCheckInOut.setTextColor(
+                    ContextCompat.getColor(requireContext(), R.color.on_primary)
+                )
+                // Start service and worker when check-in completes
+                startLocationService()
+                LocationSyncWorker.schedule(requireContext())
+            } else {
+                // Restore original card background
+                binding.cardStatus.setCardBackgroundColor(
+                    ContextCompat.getColor(requireContext(), R.color.surface)
+                )
+                // Restore original text color
+                binding.tvStatus.setTextColor(
+                    ContextCompat.getColor(requireContext(), R.color.on_surface)
+                )
+                // Hide session dot and stop animation
+                binding.viewSessionDot.visibility = View.GONE
+                stopPulseAnimation()
+                // Restore original button background
+                binding.btnCheckInOut.setBackgroundColor(
+                    ContextCompat.getColor(requireContext(), R.color.primary)
+                )
+                binding.btnCheckInOut.setTextColor(
+                    ContextCompat.getColor(requireContext(), R.color.on_primary)
+                )
+                // Stop service and worker when checked out
+                stopLocationService()
+                LocationSyncWorker.cancel(requireContext())
+            }
         }
 
         viewModel.checkInTime.observe(viewLifecycleOwner) { time ->
@@ -179,8 +229,24 @@ class AttendanceFragment : Fragment() {
         }
     }
 
+    private fun startPulseAnimation() {
+        stopPulseAnimation()
+        pulseAnimator = ObjectAnimator.ofFloat(binding.viewSessionDot, "alpha", 1f, 0.3f).apply {
+            duration = 800L
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
+        }
+    }
+    
+    private fun stopPulseAnimation() {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        stopPulseAnimation()
         _binding = null
     }
 }

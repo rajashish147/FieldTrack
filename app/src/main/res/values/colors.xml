@@ -23,5 +23,8 @@
     <color name="status_rejected">#C62828</color>
     <color name="status_pending">#F57F17</color>
 
+    <color name="session_active_tint">#FFF3E0</color>
+    <color name="session_active_accent">#FF6F00</color>
+
     <color name="divider">#E0E0E0</color>
 </resources>
