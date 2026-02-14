@@ -38,6 +38,10 @@ class AttendanceFragment : Fragment() {
     private val sessionManager: SessionManager by inject()
     
     private var pulseAnimator: ObjectAnimator? = null
+    
+    // Phase 4: Long-session reminder
+    private var hasShownLongSessionReminder = false
+    private val longSessionThresholdHours = 6
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -257,6 +261,44 @@ class AttendanceFragment : Fragment() {
     private fun stopPulseAnimation() {
         pulseAnimator?.cancel()
         pulseAnimator = null
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkLongSessionReminder()
+    }
+    
+    private fun checkLongSessionReminder() {
+        // Only check if checked in and haven't shown reminder yet this session
+        if (viewModel.isCheckedIn.value != true || hasShownLongSessionReminder) {
+            return
+        }
+        
+        val checkInTime = sessionManager.checkInTime
+        if (checkInTime <= 0L) {
+            return
+        }
+        
+        val currentTime = System.currentTimeMillis()
+        val durationMillis = currentTime - checkInTime
+        val durationHours = durationMillis / (1000 * 60 * 60)
+        
+        if (durationHours >= longSessionThresholdHours) {
+            hasShownLongSessionReminder = true
+            val hours = durationHours.toInt()
+            val minutes = ((durationMillis / (1000 * 60)) % 60).toInt()
+            val durationText = if (minutes > 0) {
+                "$hours hours and $minutes minutes"
+            } else {
+                "$hours hours"
+            }
+            
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Long Work Session")
+                .setMessage("You've been checked in for $durationText. Don't forget to check out when your shift ends.")
+                .setPositiveButton("OK", null)
+                .show()
+        }
     }
 
     override fun onDestroyView() {

@@ -8,6 +8,9 @@ import com.fieldtrack.app.data.remote.dto.AttendanceSessionDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.Response
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Repository for attendance session operations.
@@ -114,6 +117,14 @@ class AttendanceSessionRepository(
             val isCheckedIn = openSession != null
 
             sessionManager.isCheckedIn = isCheckedIn
+            
+            // Restore checkInTime from server session to fix timer after app data clear
+            if (isCheckedIn && openSession != null) {
+                val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
+                sessionManager.checkInTime = checkInTimeMillis
+                Log.i(TAG, "syncStateFromServer: restored checkInTime=$checkInTimeMillis")
+            }
+            
             Log.i(TAG, "syncStateFromServer: isCheckedIn=$isCheckedIn, session=${openSession?.id}")
 
             AttendanceSyncResult.Success(isCheckedIn, openSession)
@@ -139,6 +150,14 @@ class AttendanceSessionRepository(
                 if (localState != serverState) {
                     Log.w(TAG, "DRIFT DETECTED: local=$localState, server=$serverState, userId=$userId")
                     sessionManager.isCheckedIn = serverState
+                    
+                    // Restore checkInTime when repairing drift to checked-in state
+                    if (serverState && openSession != null) {
+                        val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
+                        sessionManager.checkInTime = checkInTimeMillis
+                        Log.i(TAG, "detectAndRepairDrift: restored checkInTime=$checkInTimeMillis")
+                    }
+                    
                     DriftResult.Repaired(localState, serverState, openSession)
                 } else {
                     Log.d(TAG, "detectAndRepairDrift: consistent (isCheckedIn=$serverState)")
@@ -228,6 +247,28 @@ class AttendanceSessionRepository(
             else -> Log.e(TAG, "$operation: server error $code")
         }
     }
+
+    /**
+     * Parse ISO 8601 timestamp to milliseconds.
+     * Handles Supabase format: 2026-02-14T21:00:01.405445+00:00
+     * Falls back to current time on parse error.
+     */
+    private fun parseIso8601Timestamp(timestamp: String): Long {
+        return try {
+            // Supabase returns timestamps with 6 decimal places (microseconds)
+            // SimpleDateFormat only supports 3 decimal places (milliseconds)
+            // So we need to truncate: 2026-02-14T21:00:01.405445+00:00 -> 2026-02-14T21:00:01.405+00:00
+            val truncated = timestamp.replace(Regex("(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3})\\d{3}"), "$1")
+            
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
+            format.timeZone = TimeZone.getTimeZone("UTC")
+            format.parse(truncated)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            Log.w(TAG, "parseIso8601Timestamp: failed to parse '$timestamp', using current time", e)
+            System.currentTimeMillis()
+        }
+    }
+
 }
 
 // ── Result Classes ──
