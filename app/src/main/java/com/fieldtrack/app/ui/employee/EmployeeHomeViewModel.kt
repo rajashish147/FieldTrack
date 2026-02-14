@@ -2,8 +2,6 @@ package com.fieldtrack.app.ui.employee
 
 import android.content.Context
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -25,6 +23,7 @@ import com.fieldtrack.app.data.repository.ExpenseRepository
 import com.fieldtrack.app.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,7 +49,8 @@ class EmployeeHomeViewModel(
     private val database: AppDatabase,
     private val userApi: UserApi,
     private val storageApi: StorageApi,
-    private val authApi: com.fieldtrack.app.data.remote.api.AuthApi
+    private val authApi: com.fieldtrack.app.data.remote.api.AuthApi,
+    private val attendanceRepository: com.fieldtrack.app.data.repository.AttendanceSessionRepository
 ) : ViewModel() {
 
     // ── Check-in state ──
@@ -66,13 +66,7 @@ class EmployeeHomeViewModel(
     private val _workDuration = MutableLiveData("00:00:00")
     val workDuration: LiveData<String> = _workDuration
 
-    private val handler = Handler(Looper.getMainLooper())
-    private val timerRunnable = object : Runnable {
-        override fun run() {
-            updateWorkDuration()
-            handler.postDelayed(this, 1000L)
-        }
-    }
+    private var timerJob: Job? = null
 
     // ── Sync state ──
 
@@ -115,31 +109,152 @@ class EmployeeHomeViewModel(
             startTimer()
         }
         loadUnsyncedCount()
+        syncStateOnStartup()
     }
 
-    fun checkIn() {
-        val now = System.currentTimeMillis()
-        sessionManager.isCheckedIn = true
-        sessionManager.checkInTime = now
-        _isCheckedIn.value = true
-        _checkInTime.value = now
-        startTimer()
-
-        // Update server-side check-in status
+    /**
+     * STEP 1: Sync state from server on app startup.
+     * Silently repairs drift without user notification.
+     */
+    private fun syncStateOnStartup() {
         viewModelScope.launch {
-            locationRepository.updateCheckInStatus(true)
+            try {
+                attendanceRepository.detectAndRepairDrift()
+                updateUIFromSessionManager()
+            } catch (e: Exception) {
+                // Silent fail - app continues with local state
+            }
         }
     }
 
-    fun checkOut() {
-        sessionManager.isCheckedIn = false
-        sessionManager.lastCheckOutTime = System.currentTimeMillis()
-        _isCheckedIn.value = false
-        stopTimer()
-
-        // Update server-side check-in status
+    /**
+     * STEP 1: Manual sync trigger (e.g., pull-to-refresh).
+     */
+    fun syncStateFromServer() {
         viewModelScope.launch {
-            locationRepository.updateCheckInStatus(false)
+            try {
+                attendanceRepository.syncStateFromServer()
+                updateUIFromSessionManager()
+                _toastMessage.value = "State synced"
+            } catch (e: Exception) {
+                _toastMessage.value = "Sync failed: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * STEP 2: Check-in via RPC.
+     * Uses SQLSTATE-based error handling and recovery via STEP 1 methods.
+     */
+    fun checkIn() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                when (val result = attendanceRepository.checkIn()) {
+                    is com.fieldtrack.app.data.repository.CheckInResult.Success -> {
+                        val checkInTime = parseIso8601Timestamp(result.session.checkInAt)
+                        sessionManager.isCheckedIn = true
+                        sessionManager.checkInTime = checkInTime
+                        _isCheckedIn.value = true
+                        _checkInTime.value = checkInTime
+                        startTimer()
+                        _toastMessage.value = "Checked in successfully"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckInResult.AlreadyCheckedIn -> {
+                        attendanceRepository.syncStateFromServer()
+                        updateUIFromSessionManager()
+                        _toastMessage.value = "Already checked in"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckInResult.AccountInactive -> {
+                        _toastMessage.value = "Account inactive or not authorized"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckInResult.NetworkError -> {
+                        attendanceRepository.syncStateFromServer()
+                        updateUIFromSessionManager()
+                        _toastMessage.value = "Network error: ${result.message}"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckInResult.Error -> {
+                        _toastMessage.value = "Check-in failed: ${result.message}"
+                    }
+                }
+            } catch (e: Exception) {
+                _toastMessage.value = "Check-in failed: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * STEP 3: Check-out via RPC.
+     * Uses SQLSTATE-based error handling and recovery via STEP 1 methods.
+     */
+    fun checkOut() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                when (val result = attendanceRepository.checkOut()) {
+                    is com.fieldtrack.app.data.repository.CheckOutResult.Success -> {
+                        sessionManager.isCheckedIn = false
+                        sessionManager.lastCheckOutTime = System.currentTimeMillis()
+                        _isCheckedIn.value = false
+                        stopTimer()
+                        _toastMessage.value = "Checked out successfully"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckOutResult.NotCheckedIn -> {
+                        attendanceRepository.syncStateFromServer()
+                        updateUIFromSessionManager()
+                        _toastMessage.value = "Not checked in"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckOutResult.AccountInactive -> {
+                        _toastMessage.value = "Account inactive or not authorized"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckOutResult.NotAuthenticated -> {
+                        _toastMessage.value = "Not authenticated"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckOutResult.NetworkError -> {
+                        attendanceRepository.syncStateFromServer()
+                        updateUIFromSessionManager()
+                        _toastMessage.value = "Network error: ${result.message}"
+                    }
+                    is com.fieldtrack.app.data.repository.CheckOutResult.Error -> {
+                        _toastMessage.value = "Check-out failed: ${result.message}"
+                    }
+                }
+            } catch (e: Exception) {
+                _toastMessage.value = "Check-out failed: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // ── Private Helper Methods ──
+
+    /**
+     * Update UI state from SessionManager after sync operations.
+     */
+    private fun updateUIFromSessionManager() {
+        _isCheckedIn.value = sessionManager.isCheckedIn
+        if (sessionManager.isCheckedIn) {
+            _checkInTime.value = sessionManager.checkInTime
+            startTimer()
+        } else {
+            stopTimer()
+        }
+    }
+
+    /**
+     * Parse ISO 8601 timestamp to milliseconds.
+     * Falls back to current time on parse error.
+     */
+    private fun parseIso8601Timestamp(timestamp: String): Long {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            format.timeZone = TimeZone.getTimeZone("UTC")
+            format.parse(timestamp)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
         }
     }
 
@@ -364,12 +479,18 @@ class EmployeeHomeViewModel(
     }
 
     private fun startTimer() {
-        handler.removeCallbacks(timerRunnable)
-        handler.post(timerRunnable)
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (true) {
+                updateWorkDuration()
+                delay(1000L)
+            }
+        }
     }
 
     private fun stopTimer() {
-        handler.removeCallbacks(timerRunnable)
+        timerJob?.cancel()
+        timerJob = null
         _workDuration.value = "00:00:00"
     }
 
@@ -385,7 +506,7 @@ class EmployeeHomeViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        handler.removeCallbacks(timerRunnable)
+        timerJob?.cancel()
         locationCollectionJob?.cancel()
     }
 }
