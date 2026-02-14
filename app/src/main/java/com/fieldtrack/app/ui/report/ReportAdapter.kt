@@ -6,9 +6,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
 import com.fieldtrack.app.data.model.Report
 import com.fieldtrack.app.databinding.ItemReportBinding
+import com.fieldtrack.app.util.ImageLoadingUtil
 import com.fieldtrack.app.util.toReadableDate
 
 class ReportAdapter(
@@ -37,13 +37,11 @@ class ReportAdapter(
 
             if (!report.optionalImageUrl.isNullOrBlank()) {
                 binding.ivReportImage.visibility = View.VISIBLE
-                val imageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/${report.optionalImageUrl}"
-                binding.ivReportImage.load(imageUrl) {
-                    crossfade(true)
-                    memoryCacheKey(report.optionalImageUrl)
-                    diskCacheKey(report.optionalImageUrl)
-                    addHeader("Authorization", "Bearer $authToken")
-                }
+                ImageLoadingUtil.loadAuthenticatedImage(
+                    binding.ivReportImage,
+                    report.optionalImageUrl,
+                    authToken
+                )
             } else {
                 binding.ivReportImage.visibility = View.GONE
             }

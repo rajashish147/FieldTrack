@@ -7,11 +7,11 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.model.Expense
 import com.fieldtrack.app.databinding.ItemAdminExpenseBinding
 import com.fieldtrack.app.util.Constants
+import com.fieldtrack.app.util.ImageLoadingUtil
 import com.fieldtrack.app.util.formatCurrency
 import com.fieldtrack.app.util.toReadableDateTime
 
@@ -56,15 +56,13 @@ class AdminExpenseAdapter(
 
             if (expense.billImageUrl.isNotBlank()) {
                 binding.ivBillImage.visibility = View.VISIBLE
-                val imageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/${expense.billImageUrl}"
-                binding.ivBillImage.load(imageUrl) {
-                    crossfade(true)
-                    placeholder(R.drawable.ic_image_placeholder)
-                    error(R.drawable.ic_image_error)
-                    memoryCacheKey(expense.billImageUrl)
-                    diskCacheKey(expense.billImageUrl)
-                    addHeader("Authorization", "Bearer $authToken")
-                }
+                ImageLoadingUtil.loadAuthenticatedImage(
+                    binding.ivBillImage,
+                    expense.billImageUrl,
+                    authToken,
+                    R.drawable.ic_image_placeholder,
+                    R.drawable.ic_image_error
+                )
                 binding.ivBillImage.setOnClickListener { onImageClick(expense.billImageUrl) }
                 binding.tvViewBill.visibility = View.VISIBLE
                 binding.tvViewBill.setOnClickListener { onImageClick(expense.billImageUrl) }
