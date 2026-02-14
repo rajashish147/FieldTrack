@@ -32,6 +32,7 @@ class AdminExpenseFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        setupStatusFilter()
         setupSearch()
         setupSwipeRefresh()
         observeViewModel()
@@ -41,6 +42,19 @@ class AdminExpenseFragment : Fragment() {
     private fun setupRecyclerView() {
         // Adapter is recreated when employee names arrive
         binding.rvExpenses.layoutManager = LinearLayoutManager(requireContext())
+    }
+
+    private fun setupStatusFilter() {
+        binding.chipGroupStatus.setOnCheckedStateChangeListener { _, checkedIds ->
+            val selectedStatus = when (checkedIds.firstOrNull()) {
+                R.id.chip_all -> "all"
+                R.id.chip_pending -> "pending"
+                R.id.chip_approved -> "approved"
+                R.id.chip_rejected -> "rejected"
+                else -> "all"
+            }
+            viewModel.updateExpenseStatusFilter(selectedStatus)
+        }
     }
 
     private fun setupSearch() {
@@ -85,16 +99,16 @@ class AdminExpenseFragment : Fragment() {
             val isEmpty = expenses.isEmpty()
             binding.tvNoExpenses.visibility = if (isEmpty) View.VISIBLE else View.GONE
             
-            val searchQuery = viewModel.expenseSearchQuery.value ?: ""
-            binding.tvNoExpenses.text = if (searchQuery.isNotBlank()) {
-                "No expenses match \"$searchQuery\""
-            } else {
-                "No expenses submitted yet"
-            }
+            updateEmptyStateText()
         }
 
         viewModel.expenseSearchQuery.observe(viewLifecycleOwner) { query ->
             binding.ivClearSearch.visibility = if (query.isNotBlank()) View.VISIBLE else View.GONE
+            updateEmptyStateText()
+        }
+
+        viewModel.expenseStatusFilter.observe(viewLifecycleOwner) {
+            updateEmptyStateText()
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
@@ -114,6 +128,26 @@ class AdminExpenseFragment : Fragment() {
         super.onDestroyView()
         expenseAdapter = null
         _binding = null
+    }
+
+    private fun updateEmptyStateText() {
+        val searchQuery = viewModel.expenseSearchQuery.value ?: ""
+        val statusFilter = viewModel.expenseStatusFilter.value ?: "all"
+        
+        binding.tvNoExpenses.text = when {
+            searchQuery.isNotBlank() && statusFilter != "all" -> {
+                "No ${statusFilter} expenses match \"$searchQuery\""
+            }
+            searchQuery.isNotBlank() -> {
+                "No expenses match \"$searchQuery\""
+            }
+            statusFilter != "all" -> {
+                "No ${statusFilter} expenses"
+            }
+            else -> {
+                "No expenses submitted yet"
+            }
+        }
     }
 
     private fun showBillImage(imageUrl: String) {

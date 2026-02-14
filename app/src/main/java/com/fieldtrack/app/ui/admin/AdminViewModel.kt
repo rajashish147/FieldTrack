@@ -71,6 +71,9 @@ class AdminViewModel(
     private val _expenseSearchQuery = MutableLiveData("")
     val expenseSearchQuery: LiveData<String> = _expenseSearchQuery
 
+    private val _expenseStatusFilter = MutableLiveData("all")
+    val expenseStatusFilter: LiveData<String> = _expenseStatusFilter
+
     /** Map of userId → employee name for display in expense cards */
     private val _employeeNames = MutableLiveData<Map<String, String>>(emptyMap())
     val employeeNames: LiveData<Map<String, String>> = _employeeNames
@@ -111,6 +114,11 @@ class AdminViewModel(
         applyExpenseSearchFilter()
     }
 
+    fun updateExpenseStatusFilter(status: String) {
+        _expenseStatusFilter.value = status
+        applyExpenseSearchFilter()
+    }
+
     private fun applySearchFilter() {
         val query = _searchQuery.value ?: ""
         val rawList = _allEmployeesRaw.value ?: emptyList()
@@ -135,17 +143,30 @@ class AdminViewModel(
 
     private fun applyExpenseSearchFilter() {
         val query = _expenseSearchQuery.value ?: ""
+        val statusFilter = _expenseStatusFilter.value ?: "all"
         val rawList = _expensesRaw.value ?: emptyList()
         val names = _employeeNames.value ?: emptyMap()
         
-        _expenses.value = if (query.isBlank()) {
-            rawList
-        } else {
-            rawList.filter { expense ->
-                val employeeName = names[expense.userId] ?: expense.userId
-                expense.matchesSearch(query, employeeName)
+        _expenses.value = rawList
+            .filter { expense ->
+                // Status filter
+                when (statusFilter) {
+                    "all" -> true
+                    "pending" -> expense.status == com.fieldtrack.app.util.Constants.EXPENSE_STATUS_PENDING
+                    "approved" -> expense.status == com.fieldtrack.app.util.Constants.EXPENSE_STATUS_APPROVED
+                    "rejected" -> expense.status == com.fieldtrack.app.util.Constants.EXPENSE_STATUS_REJECTED
+                    else -> true
+                }
             }
-        }
+            .filter { expense ->
+                // Search filter
+                if (query.isBlank()) {
+                    true
+                } else {
+                    val employeeName = names[expense.userId] ?: expense.userId
+                    expense.matchesSearch(query, employeeName)
+                }
+            }
     }
 
     fun selectEmployee(user: User) {

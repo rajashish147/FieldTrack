@@ -49,7 +49,8 @@ class EmployeeHomeViewModel(
     private val sessionManager: SessionManager,
     private val database: AppDatabase,
     private val userApi: UserApi,
-    private val storageApi: StorageApi
+    private val storageApi: StorageApi,
+    private val authApi: com.fieldtrack.app.data.remote.api.AuthApi
 ) : ViewModel() {
 
     // ── Check-in state ──
@@ -238,7 +239,20 @@ class EmployeeHomeViewModel(
                 val response = userApi.getUserById(id = "eq.$userId")
                 if (response.isSuccessful && !response.body().isNullOrEmpty()) {
                     val userDto = response.body()!!.first()
-                    _userProfile.value = userDto.toModel()
+                    
+                    // Lazy sync: if email/phone are null, fetch from auth metadata and update
+                    if (userDto.email == null || userDto.phone == null) {
+                        syncEmailFromAuth(userId)
+                        // Reload profile after sync
+                        val updatedResponse = userApi.getUserById(id = "eq.$userId")
+                        if (updatedResponse.isSuccessful && !updatedResponse.body().isNullOrEmpty()) {
+                            _userProfile.value = updatedResponse.body()!!.first().toModel()
+                        } else {
+                            _userProfile.value = userDto.toModel()
+                        }
+                    } else {
+                        _userProfile.value = userDto.toModel()
+                    }
                 } else {
                     _errorMessage.value = "Failed to load profile"
                 }
@@ -246,6 +260,30 @@ class EmployeeHomeViewModel(
                 _errorMessage.value = e.message ?: "Network error"
             }
             _isLoading.value = false
+        }
+    }
+
+    private suspend fun syncEmailFromAuth(userId: String) {
+        return withContext(Dispatchers.IO) {
+            try {
+                val authUserResponse = authApi.getCurrentUser()
+                if (authUserResponse.isSuccessful && authUserResponse.body() != null) {
+                    val authUser = authUserResponse.body()!!
+                    val email = authUser.email
+                    val phone = authUser.userMetadata?.get("phone") as? String
+                    
+                    // Update users table with email/phone from auth
+                    userApi.updateUserEmailPhone(
+                        id = "eq.$userId",
+                        body = com.fieldtrack.app.data.remote.dto.UpdateUserEmailPhoneDto(
+                            email = email,
+                            phone = phone
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Silent fail - profile will still load without email/phone
+            }
         }
     }
 

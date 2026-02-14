@@ -1,11 +1,13 @@
 package com.fieldtrack.app.data.remote.api
 
 import com.fieldtrack.app.data.remote.dto.AuthResponse
+import com.fieldtrack.app.data.remote.dto.AuthUser
 import com.fieldtrack.app.data.remote.dto.LoginRequest
 import com.fieldtrack.app.data.remote.dto.RefreshTokenRequest
 import com.fieldtrack.app.data.remote.dto.SignUpRequest
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 
@@ -30,4 +32,7 @@ interface AuthApi {
 
     @POST("auth/v1/logout")
     suspend fun logout(): Response<Unit>
+
+    @GET("auth/v1/user")
+    suspend fun getCurrentUser(): Response<AuthUser>
 }

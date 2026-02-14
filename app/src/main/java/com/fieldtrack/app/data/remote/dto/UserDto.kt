@@ -54,3 +54,11 @@ data class UpdateProfileImageDto(
     @SerializedName("profile_image_url")
     val profileImageUrl: String
 )
+
+/** DTO for syncing email/phone from auth metadata to users table */
+data class UpdateUserEmailPhoneDto(
+    @SerializedName("email")
+    val email: String?,
+    @SerializedName("phone")
+    val phone: String?
+)

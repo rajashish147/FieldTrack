@@ -2,6 +2,7 @@ package com.fieldtrack.app.data.remote.api
 
 import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
 import com.fieldtrack.app.data.remote.dto.UpdateProfileImageDto
+import com.fieldtrack.app.data.remote.dto.UpdateUserEmailPhoneDto
 import com.fieldtrack.app.data.remote.dto.UpdateUserStatusDto
 import com.fieldtrack.app.data.remote.dto.UserDto
 import retrofit2.Response
@@ -69,5 +70,12 @@ interface UserApi {
     suspend fun updateProfileImage(
         @Query("id") id: String,
         @Body body: UpdateProfileImageDto
+    ): Response<Unit>
+
+    /** Update user's email and phone from auth metadata */
+    @PATCH("rest/v1/users")
+    suspend fun updateUserEmailPhone(
+        @Query("id") id: String,
+        @Body body: UpdateUserEmailPhoneDto
     ): Response<Unit>
 }
