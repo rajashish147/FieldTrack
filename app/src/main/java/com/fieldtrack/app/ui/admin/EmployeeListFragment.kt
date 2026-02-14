@@ -1,11 +1,14 @@
 package com.fieldtrack.app.ui.admin
 
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.fieldtrack.app.databinding.FragmentEmployeeListBinding
@@ -24,6 +27,10 @@ class EmployeeListFragment : Fragment() {
     private val viewModel: AdminViewModel by activityViewModel()
     private lateinit var adapter: EmployeeAdapter
 
+    // Store original status bar state for restoration
+    private var originalStatusBarColor: Int? = null
+    private var originalLightStatusBars: Boolean? = null
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
@@ -41,6 +48,50 @@ class EmployeeListFragment : Fragment() {
         observeViewModel()
         
         viewModel.loadAllEmployees()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyStatusBarOverride()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        restoreStatusBar()
+    }
+
+    private fun applyStatusBarOverride() {
+        activity?.window?.let { window ->
+            // Store original state
+            if (originalStatusBarColor == null) {
+                originalStatusBarColor = window.statusBarColor
+            }
+            
+            // Apply white status bar with dark icons
+            window.statusBarColor = Color.WHITE
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                if (originalLightStatusBars == null) {
+                    originalLightStatusBars = insetsController.isAppearanceLightStatusBars
+                }
+                insetsController.isAppearanceLightStatusBars = true
+            }
+        }
+    }
+
+    private fun restoreStatusBar() {
+        activity?.window?.let { window ->
+            // Restore original state
+            originalStatusBarColor?.let { window.statusBarColor = it }
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                originalLightStatusBars?.let { lightBars ->
+                    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                    insetsController.isAppearanceLightStatusBars = lightBars
+                }
+            }
+        }
     }
 
     private fun setupRecyclerView() {

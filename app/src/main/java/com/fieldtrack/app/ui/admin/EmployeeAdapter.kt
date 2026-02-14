@@ -7,6 +7,8 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.model.User
 import com.fieldtrack.app.databinding.ItemEmployeeBinding
@@ -35,6 +37,22 @@ class EmployeeAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(user: User) {
+            // Avatar
+            if (!user.profileImageUrl.isNullOrBlank()) {
+                binding.ivAvatar.load(user.profileImageUrl) {
+                    crossfade(true)
+                    placeholder(R.drawable.ic_people)
+                    error(R.drawable.ic_people)
+                    transformations(CircleCropTransformation())
+                }
+                binding.ivAvatar.imageTintList = null
+            } else {
+                binding.ivAvatar.setImageResource(R.drawable.ic_people)
+                binding.ivAvatar.imageTintList = ContextCompat.getColorStateList(
+                    binding.root.context, R.color.on_surface_variant
+                )
+            }
+            
             binding.tvEmployeeName.text = user.name.ifBlank { "Unnamed Employee" }
             
             if (user.isActive) {

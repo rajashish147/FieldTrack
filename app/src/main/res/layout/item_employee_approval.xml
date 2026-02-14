@@ -4,16 +4,20 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="2dp"
-    app:contentPadding="12dp">
+    app:contentPadding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <!-- Profile + Name/Status row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -22,8 +26,8 @@
 
             <ImageView
                 android:id="@+id/iv_profile_image"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:scaleType="centerCrop"
                 android:background="@drawable/bg_image_placeholder"
                 android:contentDescription="Employee profile image" />
@@ -32,21 +36,24 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="16dp"
                 android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/tv_employee_name"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/on_surface"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
 
                 <TextView
                     android:id="@+id/tv_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
+                    android:layout_marginTop="4dp"
                     android:textSize="12sp"
                     android:textStyle="bold" />
 
@@ -54,32 +61,36 @@
 
         </LinearLayout>
 
+        <!-- Action buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:gravity="end">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_approve"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="@string/approve"
-                android:textAllCaps="false"
-                android:textColor="@color/status_approved"
-                android:textSize="12sp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_deactivate"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="40dp"
                 android:text="@string/deactivate"
                 android:textAllCaps="false"
                 android:textColor="@color/status_rejected"
-                android:textSize="12sp" />
+                android:textSize="13sp"
+                android:minWidth="88dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_approve"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="@string/approve"
+                android:textAllCaps="false"
+                android:textColor="@color/status_approved"
+                android:textSize="13sp"
+                android:layout_marginStart="12dp"
+                android:minWidth="88dp" />
 
         </LinearLayout>
 

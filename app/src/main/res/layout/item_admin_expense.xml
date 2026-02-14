@@ -3,16 +3,20 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="2dp"
-    app:contentPadding="12dp">
+    app:contentPadding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <!-- Amount + Status row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,56 +28,71 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/on_surface" />
 
             <TextView
                 android:id="@+id/tv_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:layout_marginStart="8dp" />
 
         </LinearLayout>
 
+        <!-- Employee name -->
         <TextView
             android:id="@+id/tv_employee_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textSize="13sp"
-            android:textColor="@color/primary" />
+            android:layout_marginTop="8dp"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
+        <!-- Category -->
         <TextView
             android:id="@+id/tv_category"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textSize="14sp" />
+            android:layout_marginTop="4dp"
+            android:textSize="14sp"
+            android:textColor="@color/on_surface"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
+        <!-- Timestamp -->
         <TextView
             android:id="@+id/tv_timestamp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="4dp"
             android:textSize="12sp"
-            android:textColor="@color/on_surface_variant" />
+            android:textColor="@color/on_surface_variant"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
+        <!-- Bill image -->
         <ImageView
             android:id="@+id/iv_bill_image"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="120dp"
+            android:layout_marginTop="12dp"
             android:scaleType="centerCrop"
             android:visibility="gone"
             android:contentDescription="Bill image"
             android:background="@drawable/bg_image_placeholder" />
 
+        <!-- View bill link -->
         <TextView
             android:id="@+id/tv_view_bill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
             android:text="📎 View Bill"
             android:textSize="13sp"
             android:textColor="@color/primary"
@@ -81,12 +100,13 @@
             android:visibility="gone"
             android:padding="4dp" />
 
+        <!-- Action buttons -->
         <LinearLayout
             android:id="@+id/ll_actions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="12dp"
             android:gravity="end"
             android:visibility="gone">
 
@@ -94,20 +114,22 @@
                 android:id="@+id/btn_reject"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="40dp"
                 android:text="Reject"
                 android:textColor="@color/status_rejected"
-                android:textSize="12sp" />
+                android:textSize="13sp"
+                android:minWidth="88dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_approve"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="40dp"
                 android:text="Approve"
                 android:textColor="@color/status_approved"
-                android:layout_marginStart="8dp"
-                android:textSize="12sp" />
+                android:layout_marginStart="12dp"
+                android:textSize="13sp"
+                android:minWidth="88dp" />
 
         </LinearLayout>
 

@@ -3,10 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
     app:cardCornerRadius="8dp"
     app:cardElevation="2dp"
-    app:contentPadding="12dp"
+    app:contentPadding="16dp"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackground">
@@ -14,60 +17,88 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
+        <!-- Avatar -->
+        <ImageView
+            android:id="@+id/iv_avatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_people"
+            android:contentDescription="Employee avatar"
+            android:scaleType="centerCrop"
+            app:tint="@color/on_surface_variant" />
+
+        <!-- Content column -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_employee_name"
-                android:layout_width="0dp"
+            <!-- Name + Status row -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/on_surface" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tv_status"
-                android:layout_width="wrap_content"
+                <TextView
+                    android:id="@+id/tv_employee_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/on_surface"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_status_badge" />
+
+            </LinearLayout>
+
+            <!-- Sync info row -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp"
-                android:background="@drawable/bg_status_badge" />
+                android:orientation="horizontal"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical">
 
-        </LinearLayout>
+                <ImageView
+                    android:id="@+id/iv_sync_indicator"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_sync"
+                    android:contentDescription="Sync indicator"
+                    android:visibility="gone"
+                    app:tint="@color/status_approved" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical">
+                <TextView
+                    android:id="@+id/tv_last_sync"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textColor="@color/on_surface_variant"
+                    android:layout_marginStart="4dp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
 
-            <ImageView
-                android:id="@+id/iv_sync_indicator"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_sync"
-                android:contentDescription="Sync indicator"
-                android:visibility="gone"
-                app:tint="@color/status_approved" />
-
-            <TextView
-                android:id="@+id/tv_last_sync"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="13sp"
-                android:textColor="@color/on_surface_variant"
-                android:layout_marginStart="4dp" />
+            </LinearLayout>
 
         </LinearLayout>
 
