@@ -72,12 +72,24 @@ class AttendanceFragment : Fragment() {
         }
 
         binding.btnLogout.setOnClickListener {
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Logout")
-                .setMessage("Are you sure you want to logout?")
-                .setPositiveButton("Logout") { _, _ -> performLogout() }
-                .setNegativeButton("Cancel", null)
-                .show()
+            // Phase 3: Logout interlock - prevent logout while checked in
+            if (viewModel.isCheckedIn.value == true) {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Active Work Session")
+                    .setMessage("You are currently checked in. Please check out before logging out to ensure accurate attendance.")
+                    .setPositiveButton("Check Out Now") { _, _ ->
+                        attemptCheckOut()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            } else {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Logout")
+                    .setMessage("Are you sure you want to logout?")
+                    .setPositiveButton("Logout") { _, _ -> performLogout() }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
         }
     }
 
@@ -134,6 +146,9 @@ class AttendanceFragment : Fragment() {
     private fun performLogout() {
         stopLocationService()
         LocationSyncWorker.cancel(requireContext())
+        // Clear session synchronously BEFORE navigation to prevent auto-login
+        sessionManager.clearSession()
+        // Async cleanup (database, API call) - happens in background
         viewModel.logout()
         val intent = Intent(requireContext(), LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

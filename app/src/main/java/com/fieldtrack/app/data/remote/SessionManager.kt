@@ -84,6 +84,6 @@ class SessionManager(context: Context) {
         get() = userRole == Constants.ROLE_ADMIN
 
     fun clearSession() {
-        prefs.edit().clear().apply()
+        prefs.edit().clear().commit()  // Use commit() for synchronous clear
     }
 }
