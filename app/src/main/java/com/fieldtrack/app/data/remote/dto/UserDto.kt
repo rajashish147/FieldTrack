@@ -12,6 +12,8 @@ data class UserDto(
     val email: String? = null,
     @SerializedName("phone")
     val phone: String? = null,
+    @SerializedName("profile_image_url")
+    val profileImageUrl: String? = null,
     @SerializedName("role")
     val role: String,
     @SerializedName("is_checked_in")
@@ -26,6 +28,7 @@ data class UserDto(
         name = name,
         email = email,
         phone = phone,
+        profileImageUrl = profileImageUrl,
         role = role,
         isCheckedIn = isCheckedIn,
         isActive = isActive,
@@ -44,4 +47,10 @@ data class UpdateUserStatusDto(
     val isActive: Boolean? = null,
     @SerializedName("role")
     val role: String? = null
+)
+
+/** DTO for updating user's profile image URL */
+data class UpdateProfileImageDto(
+    @SerializedName("profile_image_url")
+    val profileImageUrl: String
 )

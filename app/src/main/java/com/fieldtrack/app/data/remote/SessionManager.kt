@@ -73,6 +73,10 @@ class SessionManager(context: Context) {
         get() = prefs.getBoolean(Constants.PREF_IS_ACTIVE, false)
         set(value) = prefs.edit().putBoolean(Constants.PREF_IS_ACTIVE, value).apply()
 
+    var profileImageUrl: String?
+        get() = prefs.getString(Constants.PREF_PROFILE_IMAGE_URL, null)
+        set(value) = prefs.edit().putString(Constants.PREF_PROFILE_IMAGE_URL, value).apply()
+
     val isLoggedIn: Boolean
         get() = accessToken != null && userId != null
 

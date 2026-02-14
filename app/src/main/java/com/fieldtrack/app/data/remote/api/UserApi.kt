@@ -1,6 +1,7 @@
 package com.fieldtrack.app.data.remote.api
 
 import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
+import com.fieldtrack.app.data.remote.dto.UpdateProfileImageDto
 import com.fieldtrack.app.data.remote.dto.UpdateUserStatusDto
 import com.fieldtrack.app.data.remote.dto.UserDto
 import retrofit2.Response
@@ -61,5 +62,12 @@ interface UserApi {
     suspend fun updateUserLastSync(
         @Query("id") id: String,
         @Body body: Map<String, String>
+    ): Response<Unit>
+    
+    /** Update user's profile image URL */
+    @PATCH("rest/v1/users")
+    suspend fun updateProfileImage(
+        @Query("id") id: String,
+        @Body body: UpdateProfileImageDto
     ): Response<Unit>
 }

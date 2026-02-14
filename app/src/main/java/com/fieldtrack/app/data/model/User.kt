@@ -7,6 +7,7 @@ data class User(
     val name: String,
     val email: String? = null,
     val phone: String? = null,
+    val profileImageUrl: String? = null,
     val role: String,
     val isCheckedIn: Boolean,
     val isActive: Boolean = false,

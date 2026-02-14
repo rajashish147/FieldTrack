@@ -104,6 +104,7 @@ class AuthRepository(
                 sessionManager.userRole = userDto.role
                 sessionManager.userName = userDto.name
                 sessionManager.isActive = userDto.isActive
+                sessionManager.profileImageUrl = userDto.profileImageUrl
 
                 if (!userDto.isActive) {
                     LoginResult.PendingApproval
@@ -176,6 +177,7 @@ class AuthRepository(
                 sessionManager.userRole = userDto.role
                 sessionManager.userName = userDto.name
                 sessionManager.isActive = userDto.isActive
+                sessionManager.profileImageUrl = userDto.profileImageUrl
 
                 if (!userDto.isActive) {
                     LoginResult.PendingApproval
@@ -211,6 +213,7 @@ class AuthRepository(
                 sessionManager.userRole = created.role
                 sessionManager.userName = created.name
                 sessionManager.isActive = created.isActive
+                sessionManager.profileImageUrl = created.profileImageUrl
             } else {
                 sessionManager.userRole = Constants.ROLE_EMPLOYEE
                 sessionManager.userName = name
@@ -244,4 +247,6 @@ class AuthRepository(
     fun getCurrentUserId(): String? = sessionManager.userId
 
     fun getCurrentUserName(): String? = sessionManager.userName
+    
+    fun needsProfileSetup(): Boolean = sessionManager.profileImageUrl.isNullOrBlank()
 }

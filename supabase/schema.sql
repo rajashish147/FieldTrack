@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     email TEXT,
     phone TEXT,
+    profile_image_url TEXT,
     role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'admin')),
     is_checked_in BOOLEAN NOT NULL DEFAULT false,
     is_active BOOLEAN NOT NULL DEFAULT false,

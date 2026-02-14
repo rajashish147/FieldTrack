@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import coil.load
 import com.fieldtrack.app.databinding.BottomSheetEmployeeDetailsBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
@@ -38,6 +39,26 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
 
     private fun bindEmployeeData(user: com.fieldtrack.app.data.model.User) {
         binding.tvEmployeeName.text = user.name.ifBlank { "Unnamed Employee" }
+        
+        // Load profile image
+        if (!user.profileImageUrl.isNullOrBlank()) {
+            binding.ivProfileImage.load(user.profileImageUrl) {
+                crossfade(true)
+                placeholder(com.fieldtrack.app.R.drawable.bg_image_placeholder)
+                error(com.fieldtrack.app.R.drawable.bg_image_placeholder)
+                // Add Supabase auth headers for private storage
+                addHeader("Authorization", "Bearer ${com.fieldtrack.app.BuildConfig.SUPABASE_ANON_KEY}")
+                addHeader("apikey", com.fieldtrack.app.BuildConfig.SUPABASE_ANON_KEY)
+            }
+            binding.ivProfileImage.visibility = View.VISIBLE
+            
+            // Click to view full size
+            binding.ivProfileImage.setOnClickListener {
+                showFullImage(user.profileImageUrl)
+            }
+        } else {
+            binding.ivProfileImage.visibility = View.GONE
+        }
         
         if (user.email.isNullOrBlank()) {
             binding.llEmail.visibility = View.GONE
@@ -75,6 +96,26 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
         }
         
         binding.tvUserId.text = user.id
+    }
+    
+    private fun showFullImage(imageUrl: String) {
+        val imageView = android.widget.ImageView(requireContext()).apply {
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            adjustViewBounds = true
+        }
+        
+        imageView.load(imageUrl) {
+            crossfade(true)
+            // Add Supabase auth headers for private storage
+            addHeader("Authorization", "Bearer ${com.fieldtrack.app.BuildConfig.SUPABASE_ANON_KEY}")
+            addHeader("apikey", com.fieldtrack.app.BuildConfig.SUPABASE_ANON_KEY)
+        }
+        
+        val dialog = android.app.AlertDialog.Builder(requireContext())
+            .setView(imageView)
+            .setPositiveButton("Close", null)
+            .create()
+        dialog.show()
     }
 
     override fun onDestroyView() {

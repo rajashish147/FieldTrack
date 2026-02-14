@@ -63,6 +63,12 @@
             android:exported="false"
             android:theme="@style/Theme.FieldTrack.NoActionBar" />
 
+        <!-- Profile Setup (for new employees to upload verification image) -->
+        <activity
+            android:name=".ui.auth.ProfileSetupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.FieldTrack.NoActionBar" />
+
         <!-- Employee Home (new, fragment-based) -->
         <activity
             android:name=".ui.employee.EmployeeHomeActivity"

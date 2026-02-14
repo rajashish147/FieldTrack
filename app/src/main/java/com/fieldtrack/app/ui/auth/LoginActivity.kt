@@ -189,7 +189,7 @@ class LoginActivity : AppCompatActivity() {
         isLoginMode = true
         updateUIMode()
         binding.tvTitle.text = "Verify Your Email"
-        binding.tvToggleMode.text = "A verification link has been sent to your email.\nPlease verify, then login."
+        binding.tvToggleMode.text = "A verification link has been sent to your email.\nPlease verify, then login to set up your profile."
         binding.tvToggleMode.isEnabled = false
         binding.btnLogin.text = "Login"
     }
@@ -210,9 +210,17 @@ class LoginActivity : AppCompatActivity() {
 
     /**
      * Routes to the pending approval screen when is_active = false.
+     * If user has no profile image, route to ProfileSetupActivity first.
      */
     private fun navigateToPendingApproval() {
-        val intent = Intent(this, PendingApprovalActivity::class.java).apply {
+        // Check if user needs to set up profile image
+        val needsProfileSetup = viewModel.needsProfileSetup()
+        
+        val intent = if (needsProfileSetup) {
+            Intent(this, ProfileSetupActivity::class.java)
+        } else {
+            Intent(this, PendingApprovalActivity::class.java)
+        }.apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)

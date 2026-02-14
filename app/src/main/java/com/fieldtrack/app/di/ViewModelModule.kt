@@ -2,6 +2,7 @@ package com.fieldtrack.app.di
 
 import com.fieldtrack.app.ui.admin.AdminViewModel
 import com.fieldtrack.app.ui.auth.LoginViewModel
+import com.fieldtrack.app.ui.auth.ProfileSetupViewModel
 import com.fieldtrack.app.ui.dashboard.DashboardViewModel
 import com.fieldtrack.app.ui.employee.EmployeeHomeViewModel
 import com.fieldtrack.app.ui.expense.ExpenseViewModel
@@ -13,8 +14,9 @@ import org.koin.dsl.module
 val viewModelModule = module {
 
     viewModel { LoginViewModel(get()) }
+    viewModel { ProfileSetupViewModel(get(), get(), get()) }
     viewModel { DashboardViewModel(get(), get(), get(), get(), get()) }
-    viewModel { EmployeeHomeViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { EmployeeHomeViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { MapViewModel(get()) }
     viewModel { ReportViewModel(get(), get(), get()) }
     viewModel { ExpenseViewModel(get(), get(), get()) }

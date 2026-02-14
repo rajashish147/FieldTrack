@@ -108,4 +108,6 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun isLoggedIn(): Boolean = authRepository.isLoggedIn()
 
     fun isAdmin(): Boolean = authRepository.isAdmin()
+    
+    fun needsProfileSetup(): Boolean = authRepository.needsProfileSetup()
 }
