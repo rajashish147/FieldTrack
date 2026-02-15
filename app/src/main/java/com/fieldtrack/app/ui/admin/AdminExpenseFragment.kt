@@ -182,7 +182,7 @@ class AdminExpenseFragment : Fragment() {
     }
 
     private fun showBillImage(imageUrl: String) {
-        val fullImageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/$imageUrl"
+        val fullImageUrl = "${com.fieldtrack.app.BuildConfig.SUPABASE_URL}/storage/v1/object/authenticated/$imageUrl"
         val authToken = viewModel.getAuthToken() ?: ""
         val dialogView = layoutInflater.inflate(R.layout.dialog_view_bill, null)
         val iv = dialogView.findViewById<ImageView>(R.id.iv_full_bill)
