@@ -267,7 +267,7 @@ class AttendanceFragment : Fragment() {
         super.onResume()
         checkLongSessionReminder()
     }
-    
+
     private fun checkLongSessionReminder() {
         // Only check if checked in and haven't shown reminder yet this session
         if (viewModel.isCheckedIn.value != true || hasShownLongSessionReminder) {

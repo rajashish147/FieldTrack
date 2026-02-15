@@ -65,6 +65,7 @@ class LocationTrackingService : Service() {
         const val TAG = "LocationTrackingService"
         const val ACTION_START = "ACTION_START_TRACKING"
         const val ACTION_STOP = "ACTION_STOP_TRACKING"
+        const val ACTION_REQUEST_CHECKOUT = "com.fieldtrack.app.REQUEST_CHECKOUT"
         
         private const val PREFS_SERVICE_STATE = "service_state"
         private const val KEY_STATE = "state"
@@ -76,6 +77,12 @@ class LocationTrackingService : Service() {
         private const val PERMISSION_CHECK_INTERVAL_MS = 30_000L // 30 seconds
         private const val WAKELOCK_TIMEOUT_MS = 8 * 60 * 60 * 1000L // 8 hours
         private const val WAKELOCK_RENEWAL_BEFORE_MS = 30 * 60 * 1000L // 30 minutes before expiry
+        
+        // Pending intent request codes
+        private const val REQUEST_CODE_CONTENT = 0
+        private const val REQUEST_CODE_STOP_ACTION = 1  // Changed from 0 to avoid confusion
+        private const val REQUEST_CODE_FIX_PERMISSION = 2  // Adjusted
+        private const val REQUEST_CODE_ENABLE_GPS = 3  // Adjusted
     }
 
     private val locationRepository: LocationRepository by inject()
@@ -699,7 +706,7 @@ class LocationTrackingService : Service() {
     private fun createNotification(contentText: String): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            REQUEST_CODE_CONTENT,
             Intent(this, DashboardActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -749,7 +756,7 @@ class LocationTrackingService : Service() {
     private fun createActiveNotification(lastTime: String): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            REQUEST_CODE_CONTENT,
             Intent(this, EmployeeHomeActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -795,7 +802,7 @@ class LocationTrackingService : Service() {
     private fun createPermissionRevokedNotification(): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            REQUEST_CODE_CONTENT,
             Intent(this, DashboardActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -819,7 +826,7 @@ class LocationTrackingService : Service() {
     private fun createLocationDisabledNotification(): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            REQUEST_CODE_CONTENT,
             Intent(this, DashboardActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -844,7 +851,7 @@ class LocationTrackingService : Service() {
     private fun createSessionInvalidNotification(reason: String): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            REQUEST_CODE_CONTENT,
             Intent(this, DashboardActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -865,11 +872,12 @@ class LocationTrackingService : Service() {
      * Creates stop tracking action button.
      */
     private fun createStopAction(): NotificationCompat.Action {
-        val stopIntent = Intent(this, LocationTrackingService::class.java).apply {
-            action = ACTION_STOP
+        // Broadcast intent to trigger check-out in the UI
+        val checkoutIntent = Intent(ACTION_REQUEST_CHECKOUT).apply {
+            setPackage(packageName)
         }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent,
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            this, REQUEST_CODE_STOP_ACTION, checkoutIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Action.Builder(
@@ -888,7 +896,7 @@ class LocationTrackingService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         val pendingIntent = PendingIntent.getActivity(
-            this, 1, intent,
+            this, REQUEST_CODE_FIX_PERMISSION, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Action.Builder(
@@ -906,7 +914,7 @@ class LocationTrackingService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         val pendingIntent = PendingIntent.getActivity(
-            this, 2, intent,
+            this, REQUEST_CODE_ENABLE_GPS, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Action.Builder(

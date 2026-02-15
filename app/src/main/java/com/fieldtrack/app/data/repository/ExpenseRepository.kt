@@ -24,6 +24,8 @@ class ExpenseRepository(
         const val MAX_SYNC_ATTEMPTS = 5
         const val SYNC_TIMEOUT_MS = 5 * 60 * 1000L  // 5 minutes
         const val BATCH_SIZE = 50
+        private const val MAX_ERROR_MESSAGE_LENGTH = 255
+        private const val MAX_ERROR_LIST_SIZE = 10
     }
 
     suspend fun saveExpenseLocally(expense: Expense) {
@@ -126,8 +128,8 @@ class ExpenseRepository(
                 // 5. Return appropriate result
                 when {
                     syncedCount == toSync.size -> SyncResult.Success(syncedCount, System.currentTimeMillis())
-                    syncedCount > 0 -> SyncResult.Partial(syncedCount, failedCount, abandonedCount, errors.take(10))
-                    else -> SyncResult.Failed("All expenses failed to sync", failedCount + abandonedCount, errors.take(10))
+                    syncedCount > 0 -> SyncResult.Partial(syncedCount, failedCount, abandonedCount, errors.take(MAX_ERROR_LIST_SIZE))
+                    else -> SyncResult.Failed("All expenses failed to sync", failedCount + abandonedCount, errors.take(MAX_ERROR_LIST_SIZE))
                 }
             } catch (e: Exception) {
                 val errorMsg = e.message ?: "Unknown error"
@@ -157,7 +159,7 @@ class ExpenseRepository(
             id = expense.id,
             state = newState,
             attempts = newAttempts,
-            errorMessage = errorMessage.take(255),
+            errorMessage = errorMessage.take(MAX_ERROR_MESSAGE_LENGTH),
             attemptedAt = now
         )
         

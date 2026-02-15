@@ -27,6 +27,7 @@ class LocationRepository(
         const val MAX_SYNC_ATTEMPTS = 5
         const val SYNC_TIMEOUT_MS = 5 * 60 * 1000L  // 5 minutes
         const val BATCH_SIZE = 100
+        private const val MAX_ERROR_MESSAGE_LENGTH = 255
     }
 
     /** Update the current user's check-in status on the server */
@@ -164,7 +165,7 @@ class LocationRepository(
                 id = location.id,
                 state = newState,
                 attempts = newAttempts,
-                errorMessage = errorMessage.take(255),  // Limit error message length
+                errorMessage = errorMessage.take(MAX_ERROR_MESSAGE_LENGTH),
                 attemptedAt = now
             )
             

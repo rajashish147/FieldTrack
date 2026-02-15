@@ -5,6 +5,11 @@ object SecurityUtils {
     private const val MIN_PASSWORD_LENGTH = 6
     private const val MAX_INPUT_LENGTH = 500
     private const val RATE_LIMIT_MS = 5000L // 5 seconds between actions
+    
+    // Velocity calculation constants
+    private const val MILLIS_PER_SECOND = 1000.0
+    private const val MPS_TO_KMH_MULTIPLIER = 3.6
+    private const val MAX_REASONABLE_SPEED_KMH = 200.0 // Highway driving
 
     private val lastActionTimestamps = mutableMapOf<String, Long>()
 
@@ -43,14 +48,13 @@ object SecurityUtils {
         lat1: Double, lon1: Double, timestamp1: Long,
         lat2: Double, lon2: Double, timestamp2: Long
     ): Boolean {
-        val timeDiffSeconds = (timestamp2 - timestamp1) / 1000.0
+        val timeDiffSeconds = (timestamp2 - timestamp1) / MILLIS_PER_SECOND
         if (timeDiffSeconds <= 0) return false
 
         val distanceMeters = LocationUtils.calculateDistance(lat1, lon1, lat2, lon2)
         val speedMps = distanceMeters / timeDiffSeconds
-        val speedKmh = speedMps * 3.6
+        val speedKmh = speedMps * MPS_TO_KMH_MULTIPLIER
 
-        // Max reasonable speed: 200 km/h (covers highway driving)
-        return speedKmh <= 200.0
+        return speedKmh <= MAX_REASONABLE_SPEED_KMH
     }
 }

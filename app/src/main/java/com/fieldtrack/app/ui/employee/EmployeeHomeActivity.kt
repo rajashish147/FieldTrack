@@ -1,6 +1,10 @@
 package com.fieldtrack.app.ui.employee
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -11,7 +15,9 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.fieldtrack.app.R
 import com.fieldtrack.app.databinding.ActivityEmployeeHomeBinding
+import com.fieldtrack.app.service.LocationTrackingService
 import com.fieldtrack.app.util.showToast
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * Employee home screen with bottom navigation.
@@ -25,6 +31,17 @@ import com.fieldtrack.app.util.showToast
 class EmployeeHomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityEmployeeHomeBinding
+    private val viewModel: EmployeeHomeViewModel by viewModel()
+    
+    // Broadcast receiver for notification stop action
+    private val checkoutReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == LocationTrackingService.ACTION_REQUEST_CHECKOUT) {
+                // Trigger check-out via ViewModel
+                viewModel.checkOut()
+            }
+        }
+    }
 
     // Permission chain: foreground location → background location → notifications
     private val foregroundLocationLauncher = registerForActivityResult(
@@ -59,6 +76,25 @@ class EmployeeHomeActivity : AppCompatActivity() {
 
         setupNavigation()
         requestPermissionsChain()
+        registerCheckoutReceiver()
+    }
+    
+    private fun registerCheckoutReceiver() {
+        val filter = IntentFilter(LocationTrackingService.ACTION_REQUEST_CHECKOUT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(checkoutReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(checkoutReceiver, filter)
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(checkoutReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Receiver not registered, ignore
+        }
     }
 
     private fun setupNavigation() {

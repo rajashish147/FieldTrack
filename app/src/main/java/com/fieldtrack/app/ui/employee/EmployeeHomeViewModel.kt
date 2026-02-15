@@ -53,6 +53,17 @@ class EmployeeHomeViewModel(
     private val attendanceRepository: com.fieldtrack.app.data.repository.AttendanceSessionRepository
 ) : ViewModel() {
 
+    companion object {
+        // Time conversion constants
+        private const val MILLIS_PER_SECOND = 1000L
+        private const val MILLIS_PER_MINUTE = 60_000L
+        private const val MILLIS_PER_HOUR = 3_600_000L
+        private const val HOURS_PER_DAY = 24L
+        
+        // Timer update interval
+        private const val TIMER_UPDATE_INTERVAL_MS = 1000L
+    }
+
     // ── Check-in state ──
 
     private val _isCheckedIn = MutableLiveData(sessionManager.isCheckedIn)
@@ -483,7 +494,7 @@ class EmployeeHomeViewModel(
         timerJob = viewModelScope.launch {
             while (true) {
                 updateWorkDuration()
-                delay(1000L)
+                delay(TIMER_UPDATE_INTERVAL_MS)
             }
         }
     }
@@ -498,9 +509,9 @@ class EmployeeHomeViewModel(
         val checkIn = sessionManager.checkInTime
         if (checkIn <= 0L) return
         val elapsed = System.currentTimeMillis() - checkIn
-        val hours = (elapsed / 3600000) % 24
-        val minutes = (elapsed / 60000) % 60
-        val seconds = (elapsed / 1000) % 60
+        val hours = (elapsed / MILLIS_PER_HOUR) % HOURS_PER_DAY
+        val minutes = (elapsed / MILLIS_PER_MINUTE) % 60
+        val seconds = (elapsed / MILLIS_PER_SECOND) % 60
         _workDuration.value = String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 
