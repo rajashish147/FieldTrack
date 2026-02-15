@@ -11,13 +11,15 @@ import com.fieldtrack.app.data.model.Report
 import com.fieldtrack.app.databinding.ItemReportBinding
 import com.fieldtrack.app.util.toReadableDate
 
-class ReportAdapter : ListAdapter<Report, ReportAdapter.ReportViewHolder>(ReportDiffCallback()) {
+class ReportAdapter(
+    private val authToken: String
+) : ListAdapter<Report, ReportAdapter.ReportViewHolder>(ReportDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReportViewHolder {
         val binding = ItemReportBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
         )
-        return ReportViewHolder(binding)
+        return ReportViewHolder(binding, authToken)
     }
 
     override fun onBindViewHolder(holder: ReportViewHolder, position: Int) {
@@ -25,7 +27,8 @@ class ReportAdapter : ListAdapter<Report, ReportAdapter.ReportViewHolder>(Report
     }
 
     class ReportViewHolder(
-        private val binding: ItemReportBinding
+        private val binding: ItemReportBinding,
+        private val authToken: String
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(report: Report) {
@@ -34,8 +37,12 @@ class ReportAdapter : ListAdapter<Report, ReportAdapter.ReportViewHolder>(Report
 
             if (!report.optionalImageUrl.isNullOrBlank()) {
                 binding.ivReportImage.visibility = View.VISIBLE
-                binding.ivReportImage.load(report.optionalImageUrl) {
+                val imageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/${report.optionalImageUrl}"
+                binding.ivReportImage.load(imageUrl) {
                     crossfade(true)
+                    memoryCacheKey(report.optionalImageUrl)
+                    diskCacheKey(report.optionalImageUrl)
+                    addHeader("Authorization", "Bearer $authToken")
                 }
             } else {
                 binding.ivReportImage.visibility = View.GONE

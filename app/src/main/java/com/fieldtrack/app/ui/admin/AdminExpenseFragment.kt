@@ -51,8 +51,10 @@ class AdminExpenseFragment : Fragment() {
     private fun observeViewModel() {
         // Rebuild adapter when employee names are available
         viewModel.employeeNames.observe(viewLifecycleOwner) { names ->
+            val authToken = viewModel.getAuthToken() ?: ""
             expenseAdapter = AdminExpenseAdapter(
                 employeeNames = names,
+                authToken = authToken,
                 onApprove = { expense -> viewModel.approveExpense(expense.id) },
                 onReject = { expense -> viewModel.rejectExpense(expense.id) },
                 onImageClick = { imageUrl -> showBillImage(imageUrl) }
@@ -87,9 +89,23 @@ class AdminExpenseFragment : Fragment() {
     }
 
     private fun showBillImage(imageUrl: String) {
+        val fullImageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/$imageUrl"
+        val authToken = viewModel.getAuthToken() ?: ""
         val dialogView = layoutInflater.inflate(R.layout.dialog_view_bill, null)
         val iv = dialogView.findViewById<ImageView>(R.id.iv_full_bill)
-        iv.load(imageUrl) { crossfade(true) }
+        iv.load(fullImageUrl) {
+            crossfade(true)
+            placeholder(R.drawable.ic_image_placeholder)
+            error(R.drawable.ic_image_error)
+            memoryCacheKey(imageUrl)
+            diskCacheKey(imageUrl)
+            addHeader("Authorization", "Bearer $authToken")
+            listener(
+                onError = { _, _ ->
+                    requireContext().showToast("Failed to load image")
+                }
+            )
+        }
 
         MaterialAlertDialogBuilder(requireContext())
             .setTitle("Bill Image")

@@ -12,7 +12,8 @@ import com.fieldtrack.app.databinding.ItemAdminReportBinding
 import com.fieldtrack.app.util.toReadableDate
 
 class AdminReportAdapter(
-    private val employeeNames: Map<String, String>
+    private val employeeNames: Map<String, String>,
+    private val authToken: String
 ) : ListAdapter<Report, AdminReportAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -37,7 +38,13 @@ class AdminReportAdapter(
 
             if (!report.optionalImageUrl.isNullOrBlank()) {
                 binding.ivReportImage.visibility = View.VISIBLE
-                binding.ivReportImage.load(report.optionalImageUrl) { crossfade(true) }
+                val imageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/${report.optionalImageUrl}"
+                binding.ivReportImage.load(imageUrl) {
+                    crossfade(true)
+                    memoryCacheKey(report.optionalImageUrl)
+                    diskCacheKey(report.optionalImageUrl)
+                    addHeader("Authorization", "Bearer $authToken")
+                }
             } else {
                 binding.ivReportImage.visibility = View.GONE
             }

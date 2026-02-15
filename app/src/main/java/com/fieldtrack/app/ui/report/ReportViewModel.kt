@@ -95,13 +95,13 @@ class ReportViewModel(
         val compressedFile = ImageUtils.compressImage(context, uri) ?: return null
 
         return try {
-            val fileName = "reports/${userId}/${currentDateString()}_${System.currentTimeMillis()}.jpg"
+            val fileName = "${userId}/${currentDateString()}_${System.currentTimeMillis()}.jpg"
             val requestBody = compressedFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
             val part = MultipartBody.Part.createFormData("file", compressedFile.name, requestBody)
 
             val response = storageApi.uploadFile("reports", fileName, part)
             if (response.isSuccessful) {
-                "${BuildConfig.SUPABASE_URL}storage/v1/object/public/reports/$fileName"
+                "reports/$fileName"
             } else {
                 null
             }
@@ -126,5 +126,9 @@ class ReportViewModel(
 
     fun clearSubmitResult() {
         _submitResult.value = null
+    }
+
+    fun getAuthToken(): String? {
+        return sessionManager.accessToken
     }
 }

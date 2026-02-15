@@ -17,6 +17,7 @@ import com.fieldtrack.app.util.toReadableDateTime
 
 class AdminExpenseAdapter(
     private val employeeNames: Map<String, String>,
+    private val authToken: String,
     private val onApprove: (Expense) -> Unit,
     private val onReject: (Expense) -> Unit,
     private val onImageClick: (String) -> Unit = {}
@@ -55,7 +56,15 @@ class AdminExpenseAdapter(
 
             if (expense.billImageUrl.isNotBlank()) {
                 binding.ivBillImage.visibility = View.VISIBLE
-                binding.ivBillImage.load(expense.billImageUrl) { crossfade(true) }
+                val imageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/${expense.billImageUrl}"
+                binding.ivBillImage.load(imageUrl) {
+                    crossfade(true)
+                    placeholder(R.drawable.ic_image_placeholder)
+                    error(R.drawable.ic_image_error)
+                    memoryCacheKey(expense.billImageUrl)
+                    diskCacheKey(expense.billImageUrl)
+                    addHeader("Authorization", "Bearer $authToken")
+                }
                 binding.ivBillImage.setOnClickListener { onImageClick(expense.billImageUrl) }
                 binding.tvViewBill.visibility = View.VISIBLE
                 binding.tvViewBill.setOnClickListener { onImageClick(expense.billImageUrl) }

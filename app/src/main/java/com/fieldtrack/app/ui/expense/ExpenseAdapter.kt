@@ -15,13 +15,15 @@ import com.fieldtrack.app.util.Constants
 import com.fieldtrack.app.util.formatCurrency
 import com.fieldtrack.app.util.toReadableDateTime
 
-class ExpenseAdapter : ListAdapter<Expense, ExpenseAdapter.ExpenseViewHolder>(ExpenseDiffCallback()) {
+class ExpenseAdapter(
+    private val authToken: String
+) : ListAdapter<Expense, ExpenseAdapter.ExpenseViewHolder>(ExpenseDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ExpenseViewHolder {
         val binding = ItemExpenseBinding.inflate(
             LayoutInflater.from(parent.context), parent, false
         )
-        return ExpenseViewHolder(binding)
+        return ExpenseViewHolder(binding, authToken)
     }
 
     override fun onBindViewHolder(holder: ExpenseViewHolder, position: Int) {
@@ -29,7 +31,8 @@ class ExpenseAdapter : ListAdapter<Expense, ExpenseAdapter.ExpenseViewHolder>(Ex
     }
 
     class ExpenseViewHolder(
-        private val binding: ItemExpenseBinding
+        private val binding: ItemExpenseBinding,
+        private val authToken: String
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(expense: Expense) {
@@ -49,8 +52,14 @@ class ExpenseAdapter : ListAdapter<Expense, ExpenseAdapter.ExpenseViewHolder>(Ex
 
             if (expense.billImageUrl.isNotBlank()) {
                 binding.ivBillImage.visibility = View.VISIBLE
-                binding.ivBillImage.load(expense.billImageUrl) {
+                val imageUrl = "https://xtmbtgkeyhnlvgqibngj.supabase.co/storage/v1/object/authenticated/${expense.billImageUrl}"
+                binding.ivBillImage.load(imageUrl) {
                     crossfade(true)
+                    placeholder(R.drawable.ic_image_placeholder)
+                    error(R.drawable.ic_image_error)
+                    memoryCacheKey(expense.billImageUrl)
+                    diskCacheKey(expense.billImageUrl)
+                    addHeader("Authorization", "Bearer $authToken")
                 }
             } else {
                 binding.ivBillImage.visibility = View.GONE

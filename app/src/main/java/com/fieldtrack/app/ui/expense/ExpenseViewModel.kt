@@ -98,13 +98,13 @@ class ExpenseViewModel(
         val compressedFile = ImageUtils.compressImage(context, uri) ?: return null
 
         return try {
-            val fileName = "expenses/${userId}/${System.currentTimeMillis()}.jpg"
+            val fileName = "${userId}/${System.currentTimeMillis()}.jpg"
             val requestBody = compressedFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
             val part = MultipartBody.Part.createFormData("file", compressedFile.name, requestBody)
 
             val response = storageApi.uploadFile("expenses", fileName, part)
             if (response.isSuccessful) {
-                "${BuildConfig.SUPABASE_URL}storage/v1/object/public/expenses/$fileName"
+                "expenses/$fileName"
             } else {
                 null
             }
@@ -129,5 +129,9 @@ class ExpenseViewModel(
 
     fun clearSubmitResult() {
         _submitResult.value = null
+    }
+
+    fun getAuthToken(): String? {
+        return sessionManager.accessToken
     }
 }

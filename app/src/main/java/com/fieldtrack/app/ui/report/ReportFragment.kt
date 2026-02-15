@@ -66,7 +66,8 @@ class ReportFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        reportAdapter = ReportAdapter()
+        val authToken = viewModel.getAuthToken() ?: ""
+        reportAdapter = ReportAdapter(authToken)
         binding.rvReports.apply {
             adapter = reportAdapter
             layoutManager = LinearLayoutManager(requireContext())

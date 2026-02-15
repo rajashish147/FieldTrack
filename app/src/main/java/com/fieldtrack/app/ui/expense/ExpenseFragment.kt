@@ -68,7 +68,8 @@ class ExpenseFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        expenseAdapter = ExpenseAdapter()
+        val authToken = viewModel.getAuthToken() ?: ""
+        expenseAdapter = ExpenseAdapter(authToken)
         binding.rvExpenses.apply {
             adapter = expenseAdapter
             layoutManager = LinearLayoutManager(requireContext())

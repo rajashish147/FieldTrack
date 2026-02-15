@@ -37,7 +37,8 @@ data class EmployeeLocation(
 class AdminViewModel(
     private val adminRepository: AdminRepository,
     private val locationRepository: LocationRepository,
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: ExpenseRepository,
+    private val sessionManager: com.fieldtrack.app.data.remote.SessionManager
 ) : ViewModel() {
 
     private val _allEmployeesRaw = MutableLiveData<List<User>>()
@@ -219,8 +220,12 @@ class AdminViewModel(
             }
 
             when (val result = expenseRepository.fetchAllExpenses()) {
-                is NetworkResult.Success -> _expenses.value = result.data
-                is NetworkResult.Error -> _toastMessage.value = result.message
+                is NetworkResult.Success -> {
+                    _expenses.value = result.data
+                }
+                is NetworkResult.Error -> {
+                    _toastMessage.value = result.message
+                }
                 is NetworkResult.Loading -> { /* no-op */ }
             }
             _isLoading.value = false
@@ -251,5 +256,9 @@ class AdminViewModel(
                 is NetworkResult.Loading -> { /* no-op */ }
             }
         }
+    }
+
+    fun getAuthToken(): String? {
+        return sessionManager.accessToken
     }
 }
