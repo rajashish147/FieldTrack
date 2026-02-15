@@ -88,9 +88,13 @@ class AttendanceSessionRepository(
 
     /**
      * Check-out via RPC. Returns CheckOutResult with outcome.
+     * 
+     * P2.2 - Session drift correction:
+     * If P0002 (NOT_CHECKED_IN) is received, automatically syncs state from server.
+     * If server confirms no open session, returns SessionAlreadyClosedByAdmin.
      */
     suspend fun checkOut(): CheckOutResult = withContext(Dispatchers.IO) {
-        executeRpcCall(
+        val result = executeRpcCall(
             apiCall = { attendanceApi.checkOut() },
             operationName = "checkOut",
             onSuccess = { session ->
@@ -105,6 +109,29 @@ class AttendanceSessionRepository(
             onNetworkError = { CheckOutResult.NetworkError(it) },
             onUnknownError = { CheckOutResult.Error(it) }
         )
+
+        // P2.2 - Session drift correction: If P0002, sync state from server
+        if (result is CheckOutResult.NotCheckedIn) {
+            Log.w(TAG, "checkOut: P0002 detected, syncing state from server")
+            val openSession = getOpenSession()
+            
+            if (openSession == null) {
+                // Server confirms no open session - session was closed externally (likely by admin)
+                Log.i(TAG, "checkOut: server confirms no open session, clearing local state")
+                sessionManager.isCheckedIn = false
+                sessionManager.checkInTime = 0L
+                return@withContext CheckOutResult.SessionAlreadyClosedByAdmin
+            } else {
+                // Server has open session - local state was wrong, repair it
+                Log.w(TAG, "checkOut: server has open session, repairing local state")
+                sessionManager.isCheckedIn = true
+                val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
+                sessionManager.checkInTime = checkInTimeMillis
+                return@withContext CheckOutResult.NotCheckedIn
+            }
+        }
+
+        result
     }
 
     /**
@@ -198,7 +225,8 @@ class AttendanceSessionRepository(
                         else -> onSuccess(sessions.first().toModel())
                     }
                 }
-                response.code() in 400..499 -> {
+                response.code() in 400..599 -> {
+                    // P2.2 - Parse SQLSTATE errors from both 4xx and 5xx responses
                     val errorBody = response.errorBody()?.string() ?: ""
                     parseSqlStateError(operationName, errorBody, errorMapping, onUnknownError)
                 }
@@ -297,6 +325,8 @@ sealed class CheckOutResult {
     data object NotCheckedIn : CheckOutResult()
     data object AccountInactive : CheckOutResult()
     data object NotAuthenticated : CheckOutResult()
+    // P2.2 - Session drift correction
+    data object SessionAlreadyClosedByAdmin : CheckOutResult()
     data class NetworkError(val message: String) : CheckOutResult()
     data class Error(val message: String) : CheckOutResult()
 }

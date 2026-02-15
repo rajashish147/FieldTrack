@@ -2,6 +2,7 @@ package com.fieldtrack.app.data.remote.api
 
 import com.fieldtrack.app.data.remote.dto.AttendanceSessionDto
 import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.POST
 
 /**
@@ -79,4 +80,48 @@ interface AttendanceApi {
      */
     @POST("rest/v1/rpc/check_out")
     suspend fun checkOut(): Response<List<AttendanceSessionDto>>
+
+    // P2.1 - Admin Open Sessions
+    /**
+     * Admin-only: List all currently open attendance sessions.
+     * 
+     * RPC: admin_list_open_sessions()
+     * 
+     * Returns: JSONB with sessions array containing user info + session details
+     * 
+     * SQLSTATE Errors:
+     * - P0005 (ADMIN_REQUIRED): Caller is not admin
+     * - P0004 (NOT_AUTHENTICATED): No auth token
+     * 
+     * Security: SECURITY DEFINER function validates admin role server-side.
+     */
+    @POST("rest/v1/rpc/admin_list_open_sessions")
+    suspend fun getAdminOpenSessions(): Response<com.fieldtrack.app.data.remote.dto.AdminOpenSessionsResponse>
+
+    // P2.2 - Admin Force Check-Out
+    /**
+     * Admin-only: Force check-out a user and close their open session.
+     * 
+     * RPC: admin_force_check_out(target_user_id UUID, reason TEXT DEFAULT NULL)
+     * 
+     * Request body:
+     * {
+     *   "target_user_id": "uuid",
+     *   "reason": "optional text"
+     * }
+     * 
+     * Returns: JSON with session details
+     * 
+     * SQLSTATE Errors:
+     * - P0005 (ADMIN_REQUIRED): Caller is not admin
+     * - P0004 (NOT_AUTHENTICATED): No auth token
+     * - P0002 (NOT_CHECKED_IN): User has no open session
+     * 
+     * Security: SECURITY DEFINER function validates admin role server-side.
+     * Atomically closes session, updates user status, and logs action.
+     */
+    @POST("rest/v1/rpc/admin_force_check_out")
+    suspend fun adminForceCheckOut(
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<com.fieldtrack.app.data.remote.dto.AdminForceCheckOutResponse>
 }

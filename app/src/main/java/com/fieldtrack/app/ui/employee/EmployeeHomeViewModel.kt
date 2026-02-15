@@ -199,6 +199,9 @@ class EmployeeHomeViewModel(
     /**
      * STEP 3: Check-out via RPC.
      * Uses SQLSTATE-based error handling and recovery via STEP 1 methods.
+     * 
+     * P2.2 - Session drift correction:
+     * Handles SessionAlreadyClosedByAdmin when admin force-closes session.
      */
     fun checkOut() {
         viewModelScope.launch {
@@ -211,6 +214,13 @@ class EmployeeHomeViewModel(
                         _isCheckedIn.value = false
                         stopTimer()
                         _toastMessage.value = "Checked out successfully"
+                    }
+                    // P2.2 - Session drift correction
+                    is com.fieldtrack.app.data.repository.CheckOutResult.SessionAlreadyClosedByAdmin -> {
+                        // State already synced in repository, just update UI
+                        _isCheckedIn.value = false
+                        stopTimer()
+                        _toastMessage.value = "Your session was closed by an administrator"
                     }
                     is com.fieldtrack.app.data.repository.CheckOutResult.NotCheckedIn -> {
                         attendanceRepository.syncStateFromServer()

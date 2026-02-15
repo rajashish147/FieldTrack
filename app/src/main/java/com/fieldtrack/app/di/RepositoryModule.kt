@@ -13,6 +13,7 @@ val repositoryModule = module {
     single { LocationRepository(get(), get(), get(), get()) }
     single { ReportRepository(get(), get(), get()) }
     single { ExpenseRepository(get(), get(), get()) }
-    single { AdminRepository(get()) }
+    // P2.1 - Admin Open Sessions: Inject AttendanceApi into AdminRepository
+    single { AdminRepository(get(), get()) }
     single { com.fieldtrack.app.data.repository.AttendanceSessionRepository(get(), get()) }
 }

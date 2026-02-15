@@ -10,7 +10,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.fieldtrack.app.R
 import com.fieldtrack.app.databinding.FragmentEmployeeListBinding
 import com.fieldtrack.app.util.showToast
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
@@ -46,6 +48,8 @@ class EmployeeListFragment : Fragment() {
         setupFilterButtons()
         setupSwipeRefresh()
         setupLogout()
+        // P2.1 - Admin Open Sessions: Setup navigation button
+        setupOpenSessionsButton()
         observeViewModel()
         
         viewModel.loadAllEmployees()
@@ -190,6 +194,13 @@ class EmployeeListFragment : Fragment() {
     private fun setupLogout() {
         binding.btnLogout.setOnClickListener {
             (activity as? AdminHomeActivity)?.logout()
+        }
+    }
+
+    // P2.1 - Admin Open Sessions: Navigate to open sessions screen
+    private fun setupOpenSessionsButton() {
+        binding.btnOpenSessions.setOnClickListener {
+            findNavController().navigate(R.id.openSessionsFragment)
         }
     }
 

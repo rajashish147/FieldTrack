@@ -101,6 +101,17 @@ class AdminViewModel(
     private val _pendingExpenseCount = MutableLiveData(0)
     val pendingExpenseCount: LiveData<Int> = _pendingExpenseCount
 
+    // P2.1 - Admin Open Sessions
+    private val _openSessions = MutableLiveData<List<com.fieldtrack.app.data.model.OpenSession>>()
+    val openSessions: LiveData<List<com.fieldtrack.app.data.model.OpenSession>> = _openSessions
+
+    // P2.2 - Admin Force Check-Out
+    private val _forceLoading = MutableLiveData(false)
+    val forceLoading: LiveData<Boolean> = _forceLoading
+
+    private val _forceError = MutableLiveData<String?>()
+    val forceError: LiveData<String?> = _forceError
+
     fun loadAllEmployees() {
         _isLoading.value = true
         viewModelScope.launch {
@@ -368,5 +379,58 @@ class AdminViewModel(
 
     fun getAuthToken(): String? {
         return sessionManager.accessToken
+    }
+
+    // P2.1 - Admin Open Sessions
+    /**
+     * Load all currently open attendance sessions (admin-only).
+     * Updates openSessions LiveData with list of active sessions.
+     */
+    fun loadOpenSessions() {
+        _isLoading.value = true
+        viewModelScope.launch {
+            when (val result = adminRepository.getOpenSessions()) {
+                is NetworkResult.Success -> {
+                    _openSessions.value = result.data
+                }
+                is NetworkResult.Error -> {
+                    _toastMessage.value = result.message
+                }
+                is NetworkResult.Loading -> { /* no-op */ }
+            }
+            _isLoading.value = false
+        }
+    }
+
+    // P2.2 - Admin Force Check-Out
+    /**
+     * Force check-out a user and close their open session (admin-only).
+     * 
+     * @param userId Target user's UUID
+     * @param reason Optional reason for force check-out
+     * 
+     * On success: Reloads open sessions list
+     * On error: Exposes error message via forceError LiveData
+     */
+    fun forceCheckOut(userId: String, reason: String?) {
+        _forceLoading.value = true
+        _forceError.value = null
+        viewModelScope.launch {
+            when (val result = adminRepository.forceCheckOut(userId, reason)) {
+                is NetworkResult.Success -> {
+                    _toastMessage.value = "Session closed"
+                    loadOpenSessions()
+                }
+                is NetworkResult.Error -> {
+                    _forceError.value = result.message
+                }
+                is NetworkResult.Loading -> { /* no-op */ }
+            }
+            _forceLoading.value = false
+        }
+    }
+
+    fun clearForceError() {
+        _forceError.value = null
     }
 }
