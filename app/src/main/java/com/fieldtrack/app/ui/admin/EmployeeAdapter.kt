@@ -55,7 +55,7 @@ class EmployeeAdapter(
             
             binding.tvEmployeeName.text = user.name.ifBlank { "Unnamed Employee" }
             
-            if (user.isActive) {
+            if (user.isCheckedIn) {
                 binding.tvStatus.text = "Active"
                 binding.tvStatus.setTextColor(
                     ContextCompat.getColor(binding.root.context, R.color.status_approved)
