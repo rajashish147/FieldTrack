@@ -79,14 +79,12 @@
                 android:layout_marginTop="6dp"
                 android:gravity="center_vertical">
 
-                <ImageView
-                    android:id="@+id/iv_sync_indicator"
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:src="@drawable/ic_sync"
-                    android:contentDescription="Sync indicator"
-                    android:visibility="gone"
-                    app:tint="@color/status_approved" />
+                <!-- PHASE C - Sync Health UI: Colored health dot -->
+                <View
+                    android:id="@+id/view_sync_health_dot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/bg_dot_gray" />
 
                 <TextView
                     android:id="@+id/tv_last_sync"
@@ -94,7 +92,7 @@
                     android:layout_height="wrap_content"
                     android:textSize="13sp"
                     android:textColor="@color/on_surface_variant"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginStart="6dp"
                     android:maxLines="1"
                     android:ellipsize="end" />
 

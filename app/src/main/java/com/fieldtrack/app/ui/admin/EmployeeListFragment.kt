@@ -140,6 +140,19 @@ class EmployeeListFragment : Fragment() {
             viewModel.applyEmployeeFilter(EmployeeFilter.INACTIVE)
             updateFilterButtonState(EmployeeFilter.INACTIVE)
         }
+        
+        // PHASE A - Summary Bar: Wire up summary clicks to existing filter logic
+        binding.summaryTotal.setOnClickListener {
+            binding.btnFilterAll.performClick()
+        }
+        
+        binding.summaryActive.setOnClickListener {
+            binding.btnFilterActive.performClick()
+        }
+        
+        binding.summaryInactive.setOnClickListener {
+            binding.btnFilterInactive.performClick()
+        }
     }
 
     private fun updateFilterButtonState(selectedFilter: EmployeeFilter) {
@@ -194,6 +207,9 @@ class EmployeeListFragment : Fragment() {
             } else {
                 "No employees found"
             }
+            
+            // PHASE A - Summary Bar: Update summary counts dynamically
+            updateSummaryCounts(employees)
         }
 
         viewModel.searchQuery.observe(viewLifecycleOwner) { query ->
@@ -211,6 +227,17 @@ class EmployeeListFragment : Fragment() {
                 viewModel.clearToast()
             }
         }
+    }
+    
+    // PHASE A - Summary Bar: Compute and display summary counts
+    private fun updateSummaryCounts(employees: List<com.fieldtrack.app.data.model.User>) {
+        val totalCount = employees.size
+        val activeCount = employees.count { it.isCheckedIn }
+        val inactiveCount = employees.count { !it.isCheckedIn }
+        
+        binding.tvSummaryTotalCount.text = totalCount.toString()
+        binding.tvSummaryActiveCount.text = activeCount.toString()
+        binding.tvSummaryInactiveCount.text = inactiveCount.toString()
     }
 
     private fun showEmployeeDetailsBottomSheet() {

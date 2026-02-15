@@ -12,6 +12,7 @@ import com.fieldtrack.app.databinding.ActivityAdminHomeBinding
 import com.fieldtrack.app.ui.auth.LoginActivity
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * Admin home screen with bottom navigation.
@@ -24,6 +25,9 @@ class AdminHomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAdminHomeBinding
     private val authRepository: AuthRepository by inject()
+    
+    // PHASE B - Pending Badge: Access ViewModel to observe pending counts
+    private val adminViewModel: AdminViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,6 +35,8 @@ class AdminHomeActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupNavigation()
+        // PHASE B - Pending Badge: Observe pending counts and update badges
+        observePendingCounts()
     }
 
     private fun setupNavigation() {
@@ -38,6 +44,41 @@ class AdminHomeActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         val navController = navHostFragment.navController
         binding.bottomNavigation.setupWithNavController(navController)
+    }
+    
+    // PHASE B - Pending Badge: Update badges when pending counts change
+    private fun observePendingCounts() {
+        // Load initial counts
+        adminViewModel.loadPendingEmployees()
+        adminViewModel.loadAllExpenses()
+        
+        adminViewModel.pendingEmployeeCount.observe(this) { count ->
+            updateBadge(R.id.unifiedApprovalsFragment, count)
+        }
+        
+        adminViewModel.pendingExpenseCount.observe(this) { count ->
+            updateBadge(R.id.adminExpenseFragment, count)
+        }
+    }
+    
+    // PHASE B - Pending Badge: Show/hide badge with count
+    private fun updateBadge(menuItemId: Int, count: Int) {
+        val badge = binding.bottomNavigation.getOrCreateBadge(menuItemId)
+        
+        if (count > 0) {
+            badge.isVisible = true
+            badge.number = if (count > 99) 99 else count
+            badge.maxCharacterCount = 2
+            
+            // Show "99+" for counts over 99
+            if (count > 99) {
+                badge.text = "99+"
+            } else {
+                badge.clearText()
+            }
+        } else {
+            badge.isVisible = false
+        }
     }
 
     fun logout() {

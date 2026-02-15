@@ -67,23 +67,29 @@ class EmployeeAdapter(
                 )
             }
             
-            // Show sync time with health-based color
-            binding.tvLastSync.text = user.getFormattedLastSync()
-            binding.tvLastSync.setTextColor(user.getSyncHealthColor())
-            
-            // Show sync indicator if synced within the last hour (HEALTHY status)
-            val isRecentlySync = user.lastSyncedAt != null && try {
-                val syncTime = java.time.Instant.parse(user.lastSyncedAt)
-                val now = java.time.Instant.now()
-                val hourAgo = now.minusSeconds(3600)
-                syncTime.isAfter(hourAgo)
-            } catch (e: Exception) {
-                false
-            }
-            
-            binding.ivSyncIndicator.visibility = if (isRecentlySync) View.VISIBLE else View.GONE
+            // PHASE C - Sync Health UI: Show health dot and relative time
+            updateSyncHealthDisplay(user)
             
             binding.root.setOnClickListener { onEmployeeClick(user) }
+        }
+        
+        // PHASE C - Sync Health UI: Update sync health indicator with colored dot and relative time
+        private fun updateSyncHealthDisplay(user: User) {
+            val healthStatus = user.getSyncHealthStatus()
+            
+            // Set dot color based on health status
+            val dotDrawable = when (healthStatus) {
+                com.fieldtrack.app.data.model.SyncHealthStatus.HEALTHY -> R.drawable.bg_dot_green
+                com.fieldtrack.app.data.model.SyncHealthStatus.STALE -> R.drawable.bg_dot_yellow
+                com.fieldtrack.app.data.model.SyncHealthStatus.VERY_STALE -> R.drawable.bg_dot_red
+                com.fieldtrack.app.data.model.SyncHealthStatus.NEVER_SYNCED -> R.drawable.bg_dot_gray
+                com.fieldtrack.app.data.model.SyncHealthStatus.UNKNOWN -> R.drawable.bg_dot_gray
+            }
+            binding.viewSyncHealthDot.setBackgroundResource(dotDrawable)
+            
+            // Use existing getSyncFreshnessIndicator() for consistent formatting
+            val syncText = user.getSyncFreshnessIndicator()
+            binding.tvLastSync.text = syncText
         }
     }
 
