@@ -43,6 +43,7 @@ class EmployeeListFragment : Fragment() {
 
         setupRecyclerView()
         setupSearch()
+        setupFilterButtons()
         setupSwipeRefresh()
         setupLogout()
         observeViewModel()
@@ -119,6 +120,52 @@ class EmployeeListFragment : Fragment() {
         binding.ivClearSearch.setOnClickListener {
             binding.etSearch.text?.clear()
         }
+    }
+
+    private fun setupFilterButtons() {
+        // Set initial state - All is selected by default
+        updateFilterButtonState(EmployeeFilter.ALL)
+        
+        binding.btnFilterAll.setOnClickListener {
+            viewModel.applyEmployeeFilter(EmployeeFilter.ALL)
+            updateFilterButtonState(EmployeeFilter.ALL)
+        }
+        
+        binding.btnFilterActive.setOnClickListener {
+            viewModel.applyEmployeeFilter(EmployeeFilter.ACTIVE)
+            updateFilterButtonState(EmployeeFilter.ACTIVE)
+        }
+        
+        binding.btnFilterInactive.setOnClickListener {
+            viewModel.applyEmployeeFilter(EmployeeFilter.INACTIVE)
+            updateFilterButtonState(EmployeeFilter.INACTIVE)
+        }
+    }
+
+    private fun updateFilterButtonState(selectedFilter: EmployeeFilter) {
+        val context = requireContext()
+        val primaryColor = androidx.core.content.ContextCompat.getColor(context, com.fieldtrack.app.R.color.primary)
+        val surfaceColor = androidx.core.content.ContextCompat.getColor(context, com.fieldtrack.app.R.color.surface)
+        val onPrimaryColor = androidx.core.content.ContextCompat.getColor(context, com.fieldtrack.app.R.color.on_primary)
+        val onSurfaceColor = androidx.core.content.ContextCompat.getColor(context, com.fieldtrack.app.R.color.on_surface)
+        
+        // Reset all buttons to outlined state
+        listOf(binding.btnFilterAll, binding.btnFilterActive, binding.btnFilterInactive).forEach { button ->
+            button.backgroundTintList = android.content.res.ColorStateList.valueOf(surfaceColor)
+            button.setTextColor(onSurfaceColor)
+            button.strokeColor = android.content.res.ColorStateList.valueOf(primaryColor)
+        }
+        
+        // Set selected button to filled state
+        val selectedButton = when (selectedFilter) {
+            EmployeeFilter.ALL -> binding.btnFilterAll
+            EmployeeFilter.ACTIVE -> binding.btnFilterActive
+            EmployeeFilter.INACTIVE -> binding.btnFilterInactive
+        }
+        
+        selectedButton.backgroundTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+        selectedButton.setTextColor(onPrimaryColor)
+        selectedButton.strokeColor = android.content.res.ColorStateList.valueOf(primaryColor)
     }
 
     private fun setupSwipeRefresh() {

@@ -17,6 +17,15 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
 /**
+ * Filter options for employee list.
+ */
+enum class EmployeeFilter {
+    ALL,      // Show all employees
+    ACTIVE,   // Show only checked-in employees (isCheckedIn == true)
+    INACTIVE  // Show only checked-out employees (isCheckedIn == false)
+}
+
+/**
  * Lightweight projection for the tracking list and map detail — one per employee.
  */
 data class EmployeeLocation(
@@ -48,6 +57,8 @@ class AdminViewModel(
 
     private val _searchQuery = MutableLiveData("")
     val searchQuery: LiveData<String> = _searchQuery
+
+    private var currentEmployeeFilter = EmployeeFilter.ALL
 
     private val _pendingEmployeesRaw = MutableLiveData<List<User>>()
     
@@ -110,6 +121,11 @@ class AdminViewModel(
         applySearchFilter()
     }
 
+    fun applyEmployeeFilter(filter: EmployeeFilter) {
+        currentEmployeeFilter = filter
+        applySearchFilter()
+    }
+
     fun updatePendingSearchQuery(query: String) {
         _pendingSearchQuery.value = query
         applyPendingSearchFilter()
@@ -129,10 +145,18 @@ class AdminViewModel(
         val query = _searchQuery.value ?: ""
         val rawList = _allEmployeesRaw.value ?: emptyList()
         
+        // Apply filter first
+        val filteredByStatus = when (currentEmployeeFilter) {
+            EmployeeFilter.ALL -> rawList
+            EmployeeFilter.ACTIVE -> rawList.filter { it.isCheckedIn }
+            EmployeeFilter.INACTIVE -> rawList.filter { !it.isCheckedIn }
+        }
+        
+        // Then apply search
         _allEmployees.value = if (query.isBlank()) {
-            rawList
+            filteredByStatus
         } else {
-            rawList.filter { it.matchesSearch(query) }
+            filteredByStatus.filter { it.matchesSearch(query) }
         }
     }
 
