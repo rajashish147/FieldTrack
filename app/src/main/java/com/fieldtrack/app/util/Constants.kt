@@ -35,6 +35,7 @@ object Constants {
     const val PREF_IS_ACTIVE = "is_active"
     const val PREF_EXPIRES_AT = "token_expires_at"
     const val PREF_PROFILE_IMAGE_URL = "profile_image_url"
+    const val PREF_CURRENT_SESSION_ID = "current_session_id"  // v1.4 - Session-based location tracking
 
     // Intent Extras
     const val EXTRA_USER_ID = "extra_user_id"

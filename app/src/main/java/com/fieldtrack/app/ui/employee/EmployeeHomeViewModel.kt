@@ -3,6 +3,7 @@ package com.fieldtrack.app.ui.employee
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -115,26 +116,123 @@ class EmployeeHomeViewModel(
 
     val userName: String get() = sessionManager.userName ?: ""
 
+    // v1.4 Phase 0: Recovery completion flag
+    // CRITICAL: Service must NOT start until this is true
+    private val _isRecoveryComplete = MutableLiveData(false)
+    val isRecoveryComplete: LiveData<Boolean> = _isRecoveryComplete
+
+    // v1.4 Phase 0: Derived state for service start
+    // Combines isCheckedIn AND isRecoveryComplete
+    // Service should ONLY start when BOTH are true
+    val shouldStartService: LiveData<Boolean> = MediatorLiveData<Boolean>().apply {
+        var checkedIn = false
+        var recoveryDone = false
+        
+        fun update() {
+            value = checkedIn && recoveryDone
+        }
+        
+        addSource(isCheckedIn) {
+            checkedIn = it
+            update()
+        }
+        
+        addSource(isRecoveryComplete) {
+            recoveryDone = it
+            update()
+        }
+    }
+
     init {
         if (sessionManager.isCheckedIn) {
             startTimer()
         }
         loadUnsyncedCount()
+        
+        // v1.4 Phase 0: Ensure session recovery completes BEFORE any sync
+        // This guarantees currentSessionId is correct before service can start
         syncStateOnStartup()
+    }
+
+    /**
+     * v1.4 Phase 0 — Upgrade Recovery (Production Safe)
+     * 
+     * Guarantees that currentSessionId is consistent before
+     * any location tracking can begin.
+     * 
+     * This function is suspend and MUST complete before
+     * LocationTrackingService starts.
+     */
+    suspend fun ensureSessionRecoveredIfNeeded() {
+        // Detect upgrade scenario
+        if (sessionManager.isCheckedIn && sessionManager.currentSessionId == null) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.i("EmployeeHomeVM", "Upgrade recovery triggered")
+            }
+            
+            try {
+                val openSession = attendanceRepository.getOpenSession()
+                
+                if (openSession != null) {
+                    sessionManager.currentSessionId = openSession.id
+                    
+                    if (sessionManager.checkInTime == 0L) {
+                        val checkInTime = parseIso8601Timestamp(openSession.checkInAt)
+                        sessionManager.checkInTime = checkInTime
+                        _checkInTime.value = checkInTime
+                    }
+                    
+                    if (BuildConfig.DEBUG) {
+                        android.util.Log.i("EmployeeHomeVM", "Session ID restored")
+                    }
+                } else {
+                    clearLocalSessionState()
+                }
+            } catch (e: Exception) {
+                // Deterministic failure handling
+                clearLocalSessionState()
+                
+                if (BuildConfig.DEBUG) {
+                    android.util.Log.e("EmployeeHomeVM", "Recovery failed — state cleared", e)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Clear local session state when recovery fails or no open session exists.
+     */
+    private fun clearLocalSessionState() {
+        sessionManager.isCheckedIn = false
+        sessionManager.currentSessionId = null
+        sessionManager.checkInTime = 0L
+        
+        _isCheckedIn.value = false
+        stopTimer()
     }
 
     /**
      * STEP 1: Sync state from server on app startup.
      * Silently repairs drift without user notification.
+     * 
+     * CRITICAL: Runs AFTER ensureSessionRecoveredIfNeeded() completes.
      */
     private fun syncStateOnStartup() {
         viewModelScope.launch {
+            // Phase 0: Ensure session recovery completes FIRST
+            ensureSessionRecoveredIfNeeded()
+            
+            // Only after recovery completes, sync state
             try {
                 attendanceRepository.detectAndRepairDrift()
                 updateUIFromSessionManager()
             } catch (e: Exception) {
                 // Silent fail - app continues with local state
             }
+            
+            // CRITICAL: Signal that recovery is complete
+            // Service can now start safely
+            _isRecoveryComplete.value = true
         }
     }
 

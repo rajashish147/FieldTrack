@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.databinding.FragmentAttendanceBinding
@@ -42,6 +43,10 @@ class AttendanceFragment : Fragment() {
     // Phase 4: Long-session reminder
     private var hasShownLongSessionReminder = false
     private val longSessionThresholdHours = 6
+    
+    // v1.4 Phase 0: Idempotency guard for service start
+    // Prevents duplicate service start calls from lifecycle edge cases
+    private var serviceStarted = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -130,6 +135,16 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun startLocationService() {
+        // v1.4 Phase 0: Idempotency guard
+        // Prevents duplicate service start from lifecycle edge cases
+        if (serviceStarted) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.d("AttendanceFragment", "Service already started, skipping duplicate call")
+            }
+            return
+        }
+        serviceStarted = true
+        
         val serviceIntent = Intent(requireContext(), LocationTrackingService::class.java).apply {
             action = LocationTrackingService.ACTION_START
         }
@@ -141,6 +156,9 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun stopLocationService() {
+        // Reset idempotency guard when service stops
+        serviceStarted = false
+        
         val serviceIntent = Intent(requireContext(), LocationTrackingService::class.java).apply {
             action = LocationTrackingService.ACTION_STOP
         }
@@ -162,6 +180,15 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun observeViewModel() {
+        // v1.4 Phase 0: Single observer for service start (production-grade)
+        // No local state, no duplicate calls, lifecycle-safe
+        viewModel.shouldStartService.observe(viewLifecycleOwner) { shouldStart ->
+            if (shouldStart) {
+                startLocationService()
+                LocationSyncWorker.schedule(requireContext())
+            }
+        }
+        
         viewModel.isCheckedIn.observe(viewLifecycleOwner) { isCheckedIn ->
             binding.btnCheckInOut.text = if (isCheckedIn) "Check Out" else "Check In"
             binding.tvStatus.text = if (isCheckedIn) "Checked In" else "Checked Out"
@@ -188,9 +215,6 @@ class AttendanceFragment : Fragment() {
                 binding.btnCheckInOut.setTextColor(
                     ContextCompat.getColor(requireContext(), R.color.on_primary)
                 )
-                // Start service and worker when check-in completes
-                startLocationService()
-                LocationSyncWorker.schedule(requireContext())
             } else {
                 // Restore original card background
                 binding.cardStatus.setCardBackgroundColor(
@@ -304,6 +328,9 @@ class AttendanceFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         stopPulseAnimation()
+        // Reset service started flag when view is destroyed
+        // This allows service to restart if fragment is recreated while checked in
+        serviceStarted = false
         _binding = null
     }
 }

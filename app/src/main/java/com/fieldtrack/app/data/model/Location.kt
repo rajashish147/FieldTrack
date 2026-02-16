@@ -6,5 +6,7 @@ data class Location(
     val latitude: Double,
     val longitude: Double,
     val accuracy: Float,
-    val timestamp: String
+    val timestamp: String,
+    // v1.4 Phase 1 - Session-based location tracking (migration mode - nullable)
+    val sessionId: String? = null
 )

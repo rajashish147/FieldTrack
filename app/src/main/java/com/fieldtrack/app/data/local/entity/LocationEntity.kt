@@ -12,7 +12,8 @@ import java.util.UUID
         Index(value = ["userId"]),
         Index(value = ["timestamp"]),
         Index(value = ["syncState"]),
-        Index(value = ["userId", "syncState"])
+        Index(value = ["userId", "syncState"]),
+        Index(value = ["sessionId"])  // v1.4 Phase 2: Index for session-based queries
     ]
 )
 data class LocationEntity(
@@ -24,6 +25,10 @@ data class LocationEntity(
     val accuracy: Float,
     val timestamp: String,
     
+    // v1.4 - Session-based location tracking (nullable during migration mode)
+    // Room migration completed in Phase 2 (database version 5)
+    val sessionId: String? = null,
+    
     // Enhanced sync tracking (replaces isSynced)
     val syncState: SyncState = SyncState.LOCAL_ONLY,
     val syncAttempts: Int = 0,
@@ -31,7 +36,14 @@ data class LocationEntity(
     val syncErrorMessage: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     
-    // Keep old field for migration compatibility (will be removed in future version)
+    // Legacy field kept for Room migration compatibility (v1.0 → v1.2)
+    // DO NOT USE: Use syncState instead
+    // TODO(v1.5): Remove after confirming all users migrated from v1.0/v1.1
+    @Deprecated(
+        message = "Use syncState instead. This field is kept for migration compatibility only.",
+        replaceWith = ReplaceWith("syncState"),
+        level = DeprecationLevel.WARNING
+    )
     val isSynced: Boolean = false
 ) {
     fun toModel(): Location = Location(
@@ -40,7 +52,8 @@ data class LocationEntity(
         latitude = latitude,
         longitude = longitude,
         accuracy = accuracy,
-        timestamp = timestamp
+        timestamp = timestamp,
+        sessionId = sessionId
     )
 
     companion object {
@@ -52,6 +65,7 @@ data class LocationEntity(
                 longitude = model.longitude,
                 accuracy = model.accuracy,
                 timestamp = model.timestamp,
+                sessionId = model.sessionId,
                 syncState = SyncState.LOCAL_ONLY,
                 syncAttempts = 0,
                 lastSyncAttemptAt = null,

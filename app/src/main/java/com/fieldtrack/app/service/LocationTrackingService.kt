@@ -464,13 +464,30 @@ class LocationTrackingService : Service() {
 
                     val userId = sessionManager.userId ?: return
 
+                    // v1.4 Phase 3: Inject sessionId for session-based location tracking
+                    // CRITICAL: Fetch currentSessionId at last moment (inside coroutine scope)
+                    // to prevent race conditions from SharedPreferences changes
+                    // 
+                    // SAFETY RULES:
+                    // 1. Only set sessionId when currentSessionId != null (user is checked in)
+                    // 2. If currentSessionId is null, leave sessionId = null (backward compatible)
+                    // 3. No backfill of existing locations (only new locations get sessionId)
+                    // 4. Session validation already done above (isSessionValid check)
+                    // 
+                    // RACE CONDITION PREVENTION:
+                    // - currentSessionId is fetched INSIDE location callback (last-moment validation)
+                    // - If user checks out between location fix and save, sessionId will be null
+                    // - This is correct behavior (location captured during transition)
+                    val currentSessionId = sessionManager.currentSessionId
+
                     val location = Location(
                         id = UUID.randomUUID().toString(),
                         userId = userId,
                         latitude = androidLocation.latitude,
                         longitude = androidLocation.longitude,
                         accuracy = androidLocation.accuracy,
-                        timestamp = currentIso8601()
+                        timestamp = currentIso8601(),
+                        sessionId = currentSessionId  // v1.4 Phase 3: Nullable, set only when checked in
                     )
 
                     serviceScope.launch {

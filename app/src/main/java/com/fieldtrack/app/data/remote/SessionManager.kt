@@ -65,6 +65,14 @@ class SessionManager(context: Context) {
         get() = prefs.getLong(Constants.PREF_CHECK_IN_TIME, 0L)
         set(value) = prefs.edit().putLong(Constants.PREF_CHECK_IN_TIME, value).apply()
 
+    // v1.4 - Session-based location tracking
+    // Used to tag locations with attendance session ID
+    // NOTE: isCheckedIn is still the primary check-in state flag
+    // This field is populated during check-in and cleared during check-out
+    var currentSessionId: String?
+        get() = prefs.getString(Constants.PREF_CURRENT_SESSION_ID, null)
+        set(value) = prefs.edit().putString(Constants.PREF_CURRENT_SESSION_ID, value).apply()
+
     var lastCheckOutTime: Long
         get() = prefs.getLong(Constants.PREF_LAST_CHECK_OUT_TIME, 0L)
         set(value) = prefs.edit().putLong(Constants.PREF_LAST_CHECK_OUT_TIME, value).apply()

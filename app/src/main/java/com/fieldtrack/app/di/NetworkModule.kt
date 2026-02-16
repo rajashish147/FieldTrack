@@ -44,6 +44,16 @@ val networkModule = module {
             .build()
     }
 
+    // Gson instance configured for PostgREST compatibility
+    // CRITICAL: serializeNulls() is required for batch inserts to Supabase/PostgREST
+    // PostgREST enforces uniform object keys in JSON arrays (PGRST102 error if keys differ)
+    // Without serializeNulls(), locations with sessionId=null omit the key, causing batch sync to fail
+    single {
+        com.google.gson.GsonBuilder()
+            .serializeNulls()  // v1.4 Fix: Ensure session_id key is always present (even when null)
+            .create()
+    }
+
     // If SUPABASE_URL is missing, use a safe placeholder so the app doesn't crash on startup.
     // Actual API calls will fail gracefully with network errors instead of a fatal crash.
     single {
@@ -51,7 +61,7 @@ val networkModule = module {
         Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(get())
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(get()))  // Use configured Gson instance
             .build()
     }
 
