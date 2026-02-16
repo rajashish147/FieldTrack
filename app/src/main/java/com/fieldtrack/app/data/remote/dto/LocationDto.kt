@@ -15,7 +15,10 @@ data class LocationDto(
     @SerializedName("accuracy")
     val accuracy: Float,
     @SerializedName("timestamp")
-    val timestamp: String
+    val timestamp: String,
+    // v1.4 Phase 1 - Session-based location tracking (migration mode - nullable)
+    @SerializedName("session_id")
+    val sessionId: String? = null
 ) {
     fun toModel(): Location = Location(
         id = id,
@@ -23,7 +26,8 @@ data class LocationDto(
         latitude = latitude,
         longitude = longitude,
         accuracy = accuracy,
-        timestamp = timestamp
+        timestamp = timestamp,
+        sessionId = sessionId
     )
 
     companion object {
@@ -33,7 +37,8 @@ data class LocationDto(
             latitude = model.latitude,
             longitude = model.longitude,
             accuracy = model.accuracy,
-            timestamp = model.timestamp
+            timestamp = model.timestamp,
+            sessionId = model.sessionId
         )
     }
 }

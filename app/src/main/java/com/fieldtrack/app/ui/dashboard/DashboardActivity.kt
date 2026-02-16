@@ -113,12 +113,9 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun ensureServiceRunningIfCheckedIn() {
-        if (sessionManager.isCheckedIn && LocationUtils.hasLocationPermission(this)) {
-            val intent = Intent(this, LocationTrackingService::class.java).apply {
-                action = LocationTrackingService.ACTION_START
-            }
-            startForegroundService(intent)
-        }
+        // v1.4 Phase 0: Do NOT start service here
+        // Service start is gated by recovery completion in AttendanceFragment
+        // This method is deprecated and will be removed in Phase 1
     }
 
     fun navigateToLogin() {

@@ -21,6 +21,10 @@ class BootReceiver : BroadcastReceiver(), KoinComponent {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
+        // v1.4 Phase 0: Do NOT start service on boot
+        // Service will start when AttendanceFragment observes recovery completion
+        // This prevents race condition where service starts before session ID is restored
+        
         if (!sessionManager.isCheckedIn) {
             Log.d(TAG, "User not checked in, skipping service restart")
             return
@@ -31,16 +35,7 @@ class BootReceiver : BroadcastReceiver(), KoinComponent {
             return
         }
 
-        Log.d(TAG, "Device rebooted while user checked in, restarting location service")
-
-        val serviceIntent = Intent(context, LocationTrackingService::class.java).apply {
-            action = LocationTrackingService.ACTION_START
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
-        }
+        // Phase 0: Service start is deferred to AttendanceFragment after recovery
+        Log.d(TAG, "Device rebooted while checked in - service will start after recovery")
     }
 }

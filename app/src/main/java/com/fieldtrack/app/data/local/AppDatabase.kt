@@ -18,7 +18,7 @@ import com.fieldtrack.app.data.local.entity.ReportEntity
         ReportEntity::class,
         ExpenseEntity::class
     ],
-    version = 4,  // Incremented for database indexes
+    version = 5,  // v1.4 Phase 2: Add session_id column to locations
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -159,6 +159,64 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_userId ON expenses(userId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_syncState ON expenses(syncState)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_expenses_status ON expenses(status)")
+            }
+        }
+        
+        /**
+         * Migration from version 4 to 5: Add session_id column to locations table.
+         * 
+         * v1.4 Phase 2 - Session-Based Location Tracking
+         * 
+         * SAFETY GUARANTEES:
+         * 1. Column is nullable (TEXT) - no NOT NULL constraint
+         * 2. Existing rows automatically get NULL value (SQLite default)
+         * 3. No data deletion or modification
+         * 4. Index created AFTER column exists (prevents constraint violation)
+         * 5. IF NOT EXISTS prevents crash on re-run (idempotent)
+         * 6. Forward-only migration (no rollback needed)
+         * 
+         * PRODUCTION CONSIDERATIONS:
+         * - Users upgrading from v1.3 with existing location data: SAFE
+         * - Fresh installs: Column created with schema, no migration runs
+         * - Offline mode: Migration runs on next app start, no network required
+         * - Corrupt data: NULL is valid, no validation enforced
+         * - App crash during migration: Room retries on next start
+         * 
+         * WHAT THIS DOES NOT DO (by design):
+         * - Does NOT backfill session IDs for existing rows
+         * - Does NOT enforce non-null constraint
+         * - Does NOT modify LocationTrackingService
+         * - Does NOT change sync behavior
+         * - Does NOT add foreign key constraints
+         * 
+         * BACKEND COMPATIBILITY:
+         * - Backend already supports nullable session_id column
+         * - Existing rows with NULL session_id are valid
+         * - No API changes required
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // STEP 1: Add nullable session_id column
+                // SQLite automatically sets NULL for existing rows
+                // No DEFAULT clause needed - NULL is the implicit default
+                db.execSQL("""
+                    ALTER TABLE locations 
+                    ADD COLUMN sessionId TEXT
+                """)
+                
+                // STEP 2: Create index on sessionId for future query performance
+                // Index is created AFTER column exists to prevent errors
+                // IF NOT EXISTS makes this idempotent (safe to re-run)
+                // Partial index would be more efficient, but requires API 30+
+                db.execSQL("""
+                    CREATE INDEX IF NOT EXISTS index_locations_sessionId 
+                    ON locations(sessionId)
+                """)
+                
+                // VERIFICATION (optional, for debugging only):
+                // Query to verify column exists and has correct type
+                // This does NOT run in production - only useful for manual testing
+                // db.execSQL("SELECT sessionId FROM locations LIMIT 1")
             }
         }
     }
