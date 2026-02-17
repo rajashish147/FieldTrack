@@ -153,4 +153,34 @@ interface LocationDao {
 
     @Query("DELETE FROM locations WHERE userId = :userId")
     suspend fun deleteAll(userId: String)
+    
+    // ========== PHASE 2 BETA: SESSION ROUTE QUERIES (READ-ONLY) ==========
+    
+    /**
+     * Phase 2 Beta: Get locations for a specific session, ordered by timestamp.
+     * 
+     * READ-ONLY query for route visualization.
+     * Returns empty list if sessionId is null (graceful degradation).
+     * 
+     * Performance: Uses sessionId index (created in Phase 2 migration).
+     * Expected: <10ms for typical session (50-200 locations).
+     * 
+     * Ordering: Uses createdAt (numeric) instead of timestamp (string) for guaranteed
+     * monotonic ordering. createdAt is set to System.currentTimeMillis() when location
+     * is captured, ensuring correct chronological order.
+     * 
+     * @param sessionId The attendance session ID
+     * @param userId User ID for RLS compliance
+     * @return Ordered list of locations for the session
+     */
+    @Query("""
+        SELECT * FROM locations 
+        WHERE sessionId = :sessionId 
+        AND userId = :userId
+        ORDER BY createdAt ASC
+    """)
+    suspend fun getLocationsBySessionId(
+        sessionId: String,
+        userId: String
+    ): List<LocationEntity>
 }
