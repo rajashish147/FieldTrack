@@ -12,7 +12,7 @@ class SessionManager(context: Context) {
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
+    val prefs: SharedPreferences = EncryptedSharedPreferences.create(
         context,
         Constants.PREFS_NAME,
         masterKey,
