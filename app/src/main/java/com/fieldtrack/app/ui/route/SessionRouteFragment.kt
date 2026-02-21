@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.data.model.RouteResult
 import com.fieldtrack.app.databinding.FragmentSessionRouteBinding
 import com.fieldtrack.app.util.showToast
@@ -58,12 +59,22 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
     private var googleMap: GoogleMap? = null
     
     private var sessionId: String? = null
+    
+    // Admin fix: Accept userId parameter for viewing employee routes
+    private var userId: String? = null
+    
+    // Production hardening: Prevent camera re-zoom on configuration change
+    private var hasInitialZoom = false
+    
+    // Production hardening: Prevent duplicate polyline rendering
+    private var lastRenderedSessionId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Extract sessionId from arguments
+        // Extract sessionId and userId from arguments
         sessionId = arguments?.getString(ARG_SESSION_ID)
+        userId = arguments?.getString(ARG_USER_ID)  // Admin fix: Extract userId
     }
 
     override fun onCreateView(
@@ -84,7 +95,7 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
 
         // Setup retry button
         binding.btnRetry.setOnClickListener {
-            viewModel.retry(sessionId)
+            viewModel.retry(sessionId, userId)  // Admin fix: Pass userId
         }
 
         // Observe ViewModel state
@@ -94,7 +105,7 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
         if (sessionId.isNullOrBlank()) {
             showEmptyState("Invalid session ID")
         } else {
-            viewModel.loadRoute(sessionId)
+            viewModel.loadRoute(sessionId, userId)  // Admin fix: Pass userId
         }
     }
 
@@ -107,9 +118,11 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
         map.uiSettings.isMyLocationButtonEnabled = false
 
         // If route data arrived before map was ready, render it now
+        // Production hardening: Only zoom on first render (not on rotation)
         val currentState = viewModel.routeState.value
         if (currentState is RouteState.RouteAvailable) {
-            renderRoute(currentState.route)
+            renderRoute(currentState.route, shouldZoom = !hasInitialZoom)
+            hasInitialZoom = true
         }
     }
 
@@ -126,7 +139,8 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
                 
                 is RouteState.RouteAvailable -> {
                     hideLoading()
-                    renderRoute(state.route)
+                    renderRoute(state.route, shouldZoom = !hasInitialZoom)
+                    hasInitialZoom = true
                 }
                 
                 is RouteState.NoRouteData -> {
@@ -151,10 +165,13 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
      * 1. Convert GeoPoint → LatLng (UI framework conversion)
      * 2. Draw polyline through all points
      * 3. Add start/end markers
-     * 4. Auto-zoom camera to route bounds
+     * 4. Auto-zoom camera to route bounds (optional)
      * 5. Display summary card
+     * 
+     * @param route The route data to render
+     * @param shouldZoom Whether to auto-zoom camera (false on rotation to preserve user's view)
      */
-    private fun renderRoute(route: RouteResult) {
+    private fun renderRoute(route: RouteResult, shouldZoom: Boolean = true) {
         val map = googleMap
         
         // Show summary card
@@ -163,7 +180,15 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
         // If map not ready yet, wait for onMapReady callback
         if (map == null) return
         
-        // Clear previous route
+        // Production hardening: Prevent duplicate rendering of same route
+        val currentSessionId = sessionId
+        if (lastRenderedSessionId == currentSessionId && !shouldZoom) {
+            // Route already rendered, skip redraw
+            return
+        }
+        lastRenderedSessionId = currentSessionId
+        
+        // Clear previous route (CRITICAL: always clear before redraw)
         map.clear()
         
         // Validate route has points
@@ -178,16 +203,41 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
             LatLng(geoPoint.latitude, geoPoint.longitude)
         }
         
+        // Production safety: Cap polyline points to prevent OOM on extreme sessions
+        // Normal sessions: 50-500 points
+        // Long sessions: 500-1000 points
+        // Extreme sessions: 1000-2000 points (cap here)
+        val cappedPoints = if (latLngPoints.size > 2000) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w(
+                    "SessionRouteFragment",
+                    "Route has ${latLngPoints.size} points, capping to 2000 for performance"
+                )
+            }
+            // Production logging: Track extreme sessions
+            android.util.Log.w(
+                "SessionRouteFragment",
+                "Extreme session detected: ${latLngPoints.size} points capped to 2000"
+            )
+            
+            // Simple decimation: Take every Nth point to reach ~2000 points
+            val step = latLngPoints.size / 2000
+            latLngPoints.filterIndexed { index, _ -> index % step == 0 }
+                .take(2000)
+        } else {
+            latLngPoints
+        }
+        
         // Draw polyline
         val polylineOptions = PolylineOptions()
-            .addAll(latLngPoints)
+            .addAll(cappedPoints)
             .color(Color.parseColor("#4285F4")) // Google Blue
             .width(8f)
         
         map.addPolyline(polylineOptions)
         
         // Add start marker (green)
-        val startPoint = latLngPoints.first()
+        val startPoint = cappedPoints.first()
         map.addMarker(
             MarkerOptions()
                 .position(startPoint)
@@ -196,8 +246,8 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
         )
         
         // Add end marker (red) if different from start
-        if (latLngPoints.size > 1) {
-            val endPoint = latLngPoints.last()
+        if (cappedPoints.size > 1) {
+            val endPoint = cappedPoints.last()
             map.addMarker(
                 MarkerOptions()
                     .position(endPoint)
@@ -206,8 +256,11 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
             )
         }
         
-        // Auto-zoom camera to fit route bounds
-        zoomToRoute(latLngPoints)
+        // Auto-zoom camera to fit route bounds (only if requested)
+        // Production hardening: Skip zoom on rotation to preserve user's view
+        if (shouldZoom) {
+            zoomToRoute(cappedPoints)
+        }
         
         // Hide empty/error states
         binding.emptyState.visibility = View.GONE
@@ -351,6 +404,10 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
         // Reset ViewModel state
         viewModel.reset()
         
+        // Production hardening: Reset tracking flags
+        lastRenderedSessionId = null
+        hasInitialZoom = false
+        
         // Clean up references
         googleMap = null
         _binding = null
@@ -358,17 +415,20 @@ class SessionRouteFragment : Fragment(), OnMapReadyCallback {
 
     companion object {
         private const val ARG_SESSION_ID = "sessionId"
+        private const val ARG_USER_ID = "userId"  // Admin fix: Add userId argument
         
         /**
-         * Create new instance with sessionId.
+         * Create new instance with sessionId and optional userId.
          * 
          * @param sessionId The attendance session ID to display route for
+         * @param userId The user ID who owns the locations (for admin viewing employee routes, null = current user)
          * @return Fragment instance with arguments
          */
-        fun newInstance(sessionId: String): SessionRouteFragment {
+        fun newInstance(sessionId: String, userId: String? = null): SessionRouteFragment {
             return SessionRouteFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_SESSION_ID, sessionId)
+                    userId?.let { putString(ARG_USER_ID, it) }
                 }
             }
         }

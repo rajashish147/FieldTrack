@@ -15,7 +15,9 @@ import com.fieldtrack.app.databinding.ItemOpenSessionBinding
  */
 class OpenSessionsAdapter(
     // P2.2 - Force Check-Out callback
-    private val onForceCheckOutClick: ((OpenSession) -> Unit)? = null
+    private val onForceCheckOutClick: ((OpenSession) -> Unit)? = null,
+    // Phase 2 Beta - View Route callback
+    private val onViewRouteClick: ((OpenSession) -> Unit)? = null
 ) : ListAdapter<OpenSession, OpenSessionsAdapter.SessionViewHolder>(DIFF_CALLBACK) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SessionViewHolder {
@@ -24,7 +26,7 @@ class OpenSessionsAdapter(
             parent,
             false
         )
-        return SessionViewHolder(binding, onForceCheckOutClick)
+        return SessionViewHolder(binding, onForceCheckOutClick, onViewRouteClick)
     }
 
     override fun onBindViewHolder(holder: SessionViewHolder, position: Int) {
@@ -33,7 +35,8 @@ class OpenSessionsAdapter(
 
     class SessionViewHolder(
         private val binding: ItemOpenSessionBinding,
-        private val onForceCheckOutClick: ((OpenSession) -> Unit)?
+        private val onForceCheckOutClick: ((OpenSession) -> Unit)?,
+        private val onViewRouteClick: ((OpenSession) -> Unit)?
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(session: OpenSession) {
@@ -45,6 +48,11 @@ class OpenSessionsAdapter(
             // P2.2 - Force Check-Out button
             binding.btnForceCheckout.setOnClickListener {
                 onForceCheckOutClick?.invoke(session)
+            }
+
+            // Phase 2 Beta - View Route button
+            binding.btnViewRoute.setOnClickListener {
+                onViewRouteClick?.invoke(session)
             }
         }
     }

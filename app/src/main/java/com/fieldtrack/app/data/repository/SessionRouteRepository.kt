@@ -51,7 +51,7 @@ class SessionRouteRepository(
      * 
      * Process:
      * 1. Validate sessionId (non-null, non-blank)
-     * 2. Get userId from SessionManager
+     * 2. Get userId (from parameter or SessionManager)
      * 3. Query locations by sessionId + userId (RLS-compliant)
      * 4. Map LocationEntity → Location domain model
      * 5. Delegate to RouteCalculator for distance calculation
@@ -69,11 +69,13 @@ class SessionRouteRepository(
      * - Expected: <10ms for typical session (50-200 locations)
      * 
      * @param sessionId The attendance session ID to fetch route for
+     * @param userId The user ID who owns the locations (for admin viewing employee routes, null = current user)
      * @param accuracyThreshold Maximum GPS accuracy (meters) to include in route
      * @return RouteResult with polyline and distance, or null if unavailable
      */
     suspend fun getSessionRoute(
         sessionId: String?,
+        userId: String? = null,
         accuracyThreshold: Float = RouteCalculator.DEFAULT_ACCURACY_THRESHOLD
     ): RouteResult? = withContext(Dispatchers.IO) {
         // Validate sessionId
@@ -84,9 +86,10 @@ class SessionRouteRepository(
             return@withContext null
         }
 
-        // Get userId (RLS compliance)
-        val userId = sessionManager.userId
-        if (userId == null) {
+        // Get userId (from parameter or SessionManager)
+        // Admin fix: Use provided userId (employee's ID) instead of always using SessionManager
+        val targetUserId = userId ?: sessionManager.userId
+        if (targetUserId == null) {
             if (BuildConfig.DEBUG) {
                 Log.w(TAG, "getSessionRoute: userId unavailable")
             }
@@ -95,20 +98,21 @@ class SessionRouteRepository(
 
         try {
             // Fetch locations (READ-ONLY query)
+            // Admin fix: Query with target user's ID (employee's ID for admin)
             val entities = locationDao.getLocationsBySessionId(
                 sessionId = sessionId,
-                userId = userId
+                userId = targetUserId
             )
 
             if (entities.isEmpty()) {
                 if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "getSessionRoute: no locations found for session $sessionId")
+                    Log.d(TAG, "getSessionRoute: no locations found for session $sessionId, userId $targetUserId")
                 }
                 return@withContext null
             }
 
             if (BuildConfig.DEBUG) {
-                Log.d(TAG, "getSessionRoute: found ${entities.size} locations for session $sessionId")
+                Log.d(TAG, "getSessionRoute: found ${entities.size} locations for session $sessionId, userId $targetUserId")
             }
 
             // Map to domain model
@@ -135,7 +139,7 @@ class SessionRouteRepository(
             result
 
         } catch (e: Exception) {
-            Log.e(TAG, "getSessionRoute: exception for session $sessionId", e)
+            Log.e(TAG, "getSessionRoute: exception for session $sessionId, userId $targetUserId", e)
             null
         }
     }

@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.remote.SessionManager
@@ -20,6 +21,7 @@ import com.fieldtrack.app.util.LocationUtils
 import com.fieldtrack.app.util.SecurityUtils
 import com.fieldtrack.app.util.showToast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import java.text.SimpleDateFormat
@@ -80,6 +82,11 @@ class AttendanceFragment : Fragment() {
             viewModel.syncData()
         }
 
+        // Phase 2 Beta - View Route button
+        binding.btnViewRoute.setOnClickListener {
+            navigateToSessionRoute()
+        }
+
         binding.btnLogout.setOnClickListener {
             // Phase 3: Logout interlock - prevent logout while checked in
             if (viewModel.isCheckedIn.value == true) {
@@ -130,7 +137,7 @@ class AttendanceFragment : Fragment() {
     }
 
     private fun attemptCheckOut() {
-        viewModel.checkOut()
+        viewModel.checkOut(requireContext())
         // Service will stop automatically via isCheckedIn observer
     }
 
@@ -163,6 +170,39 @@ class AttendanceFragment : Fragment() {
             action = LocationTrackingService.ACTION_STOP
         }
         requireContext().startService(serviceIntent)
+    }
+
+    // Phase 2 Beta - Navigate to Session Route
+    /**
+     * Navigate to SessionRouteFragment to visualize today's tracked route.
+     * 
+     * Guards:
+     * - If not checked in and no currentSessionId → show Snackbar
+     * - Employee can only view their own routes (enforced by repository using SessionManager.userId)
+     */
+    private fun navigateToSessionRoute() {
+        // Get current session ID from SessionManager
+        val sessionId = sessionManager.currentSessionId
+        
+        // Guard: Check if sessionId is available
+        if (sessionId.isNullOrBlank()) {
+            Snackbar.make(
+                binding.root,
+                "Route data not available for this session",
+                Snackbar.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        // Navigate with sessionId argument using Bundle
+        val bundle = Bundle().apply {
+            putString("sessionId", sessionId)
+        }
+        
+        findNavController().navigate(
+            R.id.sessionRouteFragment,
+            bundle
+        )
     }
 
     private fun performLogout() {

@@ -80,6 +80,19 @@
             app:icon="@android:drawable/ic_menu_close_clear_cancel"
             app:iconSize="16dp" />
 
+        <!-- Phase 2 Beta - View Route Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_view_route"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="4dp"
+            android:text="View Route"
+            android:textSize="12sp"
+            style="@style/Widget.Material3.Button.TextButton"
+            app:icon="@android:drawable/ic_menu_mapmode"
+            app:iconSize="16dp" />
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

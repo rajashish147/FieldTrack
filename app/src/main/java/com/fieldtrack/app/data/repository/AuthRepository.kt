@@ -145,6 +145,7 @@ class AuthRepository(
                     userId = sessionManager.userId ?: authResponse.user?.id ?: "",
                     expiresIn = authResponse.expiresIn ?: 3600L
                 )
+                
                 true
             } else {
                 sessionManager.clearSession()

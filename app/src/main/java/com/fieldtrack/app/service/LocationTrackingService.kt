@@ -19,6 +19,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.R
 import com.fieldtrack.app.data.model.Location
 import com.fieldtrack.app.data.remote.SessionManager
@@ -332,6 +333,12 @@ class LocationTrackingService : Service() {
     /**
      * Stops tracking with a specific reason.
      * This method ensures clean shutdown and persists the stop reason.
+     * 
+     * CRITICAL: Final sync is NOT performed here - it's done in coordinatedCheckOut()
+     * before this method is called. This prevents the race condition where auth
+     * is cleared before sync completes.
+     * 
+     * CRITICAL: Service does NOT modify session state - repository owns all session management.
      */
     private fun stopTrackingWithReason(reason: StopReason) {
         Log.i(TAG, "Stopping service with reason: $reason")
@@ -354,32 +361,13 @@ class LocationTrackingService : Service() {
         // Unregister monitors
         unregisterMonitors()
         
-        // Clear check-in flag if stopped due to error
-        if (reason != StopReason.USER_CHECKOUT && reason != StopReason.USER_LOGOUT) {
-            sessionManager.isCheckedIn = false
-        }
+        // DO NOT clear session state - repository owns session management
+        // DO NOT sync - already done in coordinatedCheckOut()
         
-        // Final sync (best effort)
-        serviceScope.launch {
-            try {
-                val result = locationRepository.syncUnsyncedLocations()
-                when (result) {
-                    is SyncResult.Success -> Log.d(TAG, "Final sync: ${result.synced} synced")
-                    is SyncResult.Partial -> Log.w(TAG, "Final sync partial: ${result.synced} synced, ${result.failed} failed")
-                    is SyncResult.Failed -> Log.e(TAG, "Final sync failed: ${result.reason}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error during final sync", e)
-            } finally {
-                // Only stop service if tracking hasn't restarted
-                if (!isTracking) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
-                } else {
-                    Log.d(TAG, "Service restarted during shutdown, skipping stopSelf()")
-                }
-            }
-        }
+        Log.d(TAG, "Service stopped (final sync already completed in coordinatedCheckOut)")
+        
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     private fun acquireWakeLock() {
@@ -479,6 +467,16 @@ class LocationTrackingService : Service() {
                     // - If user checks out between location fix and save, sessionId will be null
                     // - This is correct behavior (location captured during transition)
                     val currentSessionId = sessionManager.currentSessionId
+                    Log.d("SESSION_DEBUG", "Service sees sessionId = $currentSessionId")
+                    
+                    // INVARIANT S1 CHECK: isCheckedIn == true ⇒ currentSessionId != null
+                    try {
+                        sessionManager.assertInvariantS1()
+                    } catch (e: IllegalStateException) {
+                        Log.e(TAG, "INVARIANT S1 VIOLATED in location callback", e)
+                        handleSessionInvalid()
+                        return
+                    }
 
                     val location = Location(
                         id = UUID.randomUUID().toString(),
@@ -494,7 +492,11 @@ class LocationTrackingService : Service() {
                         try {
                             locationRepository.saveLocationLocally(location)
                             unsyncedBatchCount++
-                            Log.d(TAG, "Location saved: ${location.latitude}, ${location.longitude} (accuracy: ${location.accuracy}m)")
+                            // Security: GPS coordinates are PII - only log in debug builds
+                            // Production: No per-location logging (batch sync logs are sufficient)
+                            if (BuildConfig.DEBUG) {
+                                Log.d(TAG, "Location saved: ${location.latitude}, ${location.longitude} (accuracy: ${location.accuracy}m)")
+                            }
 
                             // Batch sync: only sync after N locations to reduce network calls
                             if (unsyncedBatchCount >= Constants.LOCATION_SYNC_BATCH_SIZE) {

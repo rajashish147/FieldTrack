@@ -59,11 +59,11 @@ class SessionManager(context: Context) {
 
     var isCheckedIn: Boolean
         get() = prefs.getBoolean(Constants.PREF_IS_CHECKED_IN, false)
-        set(value) = prefs.edit().putBoolean(Constants.PREF_IS_CHECKED_IN, value).apply()
+        private set(value) = prefs.edit().putBoolean(Constants.PREF_IS_CHECKED_IN, value).apply()
 
     var checkInTime: Long
         get() = prefs.getLong(Constants.PREF_CHECK_IN_TIME, 0L)
-        set(value) = prefs.edit().putLong(Constants.PREF_CHECK_IN_TIME, value).apply()
+        private set(value) = prefs.edit().putLong(Constants.PREF_CHECK_IN_TIME, value).apply()
 
     // v1.4 - Session-based location tracking
     // Used to tag locations with attendance session ID
@@ -71,7 +71,9 @@ class SessionManager(context: Context) {
     // This field is populated during check-in and cleared during check-out
     var currentSessionId: String?
         get() = prefs.getString(Constants.PREF_CURRENT_SESSION_ID, null)
-        set(value) = prefs.edit().putString(Constants.PREF_CURRENT_SESSION_ID, value).apply()
+        private set(value) {
+            prefs.edit().putString(Constants.PREF_CURRENT_SESSION_ID, value).commit()
+        }
 
     var lastCheckOutTime: Long
         get() = prefs.getLong(Constants.PREF_LAST_CHECK_OUT_TIME, 0L)
@@ -90,6 +92,87 @@ class SessionManager(context: Context) {
 
     val isAdmin: Boolean
         get() = userRole == Constants.ROLE_ADMIN
+
+    /**
+     * Checkout lock prevents session clearing during final sync.
+     * CRITICAL: Prevents race condition where auth is cleared before sync completes.
+     */
+    @Volatile
+    private var isCheckoutInProgress = false
+    
+    /**
+     * Begin checkout phase - locks session from being cleared.
+     * Returns false if checkout already in progress.
+     */
+    fun beginCheckout(): Boolean = synchronized(this) {
+        if (isCheckoutInProgress) {
+            return false
+        }
+        isCheckoutInProgress = true
+        return true
+    }
+    
+    /**
+     * Complete checkout phase - allows session clearing.
+     */
+    fun completeCheckout() = synchronized(this) {
+        isCheckoutInProgress = false
+    }
+    
+    /**
+     * Check if checkout is in progress.
+     * Auth operations should NOT clear session during checkout.
+     */
+    fun isCheckoutInProgress(): Boolean = isCheckoutInProgress
+
+    /**
+     * Atomically set checked-in state with session ID.
+     * INVARIANT S1: isCheckedIn == true ⇒ currentSessionId != null
+     * 
+     * @param sessionId Attendance session ID (must not be null or blank)
+     * @param checkInTime Check-in timestamp in milliseconds
+     * @throws IllegalArgumentException if sessionId is null or blank
+     */
+    fun setCheckedIn(sessionId: String, checkInTime: Long) = synchronized(this) {
+        require(sessionId.isNotBlank()) { "sessionId must not be blank" }
+        
+        prefs.edit()
+            .putBoolean(Constants.PREF_IS_CHECKED_IN, true)
+            .putString(Constants.PREF_CURRENT_SESSION_ID, sessionId)
+            .putLong(Constants.PREF_CHECK_IN_TIME, checkInTime)
+            .commit()  // Synchronous commit for atomicity
+    }
+    
+    /**
+     * Atomically set checked-out state.
+     * Clears session ID and updates checkout time.
+     * 
+     * @param checkOutTime Check-out timestamp in milliseconds
+     */
+    fun setCheckedOut(checkOutTime: Long) = synchronized(this) {
+        prefs.edit()
+            .putBoolean(Constants.PREF_IS_CHECKED_IN, false)
+            .putString(Constants.PREF_CURRENT_SESSION_ID, null)
+            .putLong(Constants.PREF_LAST_CHECK_OUT_TIME, checkOutTime)
+            .commit()  // Synchronous commit for atomicity
+    }
+    
+    /**
+     * Defensive invariant check: isCheckedIn == true ⇒ currentSessionId != null
+     * Should be called after any state mutation to verify consistency.
+     * 
+     * @throws IllegalStateException if invariant is violated
+     */
+    fun assertInvariantS1() {
+        val checkedIn = isCheckedIn
+        val sessionId = currentSessionId
+        
+        if (checkedIn && sessionId == null) {
+            throw IllegalStateException(
+                "INVARIANT S1 VIOLATED: isCheckedIn=true but currentSessionId=null"
+            )
+        }
+    }
 
     fun clearSession() {
         prefs.edit().clear().commit()  // Use commit() for synchronous clear

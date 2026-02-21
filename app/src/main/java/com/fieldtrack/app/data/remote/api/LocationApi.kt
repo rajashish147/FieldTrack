@@ -28,4 +28,11 @@ interface LocationApi {
         @Query("select") select: String = "*",
         @Query("order") order: String = "timestamp.asc"
     ): Response<List<LocationDto>>
+
+    @GET("rest/v1/locations")
+    suspend fun getLocationsBySession(
+        @Query("session_id") sessionId: String,
+        @Query("select") select: String = "*",
+        @Query("order") order: String = "timestamp.asc"
+    ): Response<List<LocationDto>>
 }

@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.fieldtrack.app.databinding.FragmentOpenSessionsBinding
 import com.fieldtrack.app.util.showToast
@@ -48,9 +49,15 @@ class OpenSessionsFragment : Fragment() {
 
     private fun setupRecyclerView() {
         // P2.2 - Pass force check-out callback to adapter
-        adapter = OpenSessionsAdapter { session ->
-            showForceCheckOutDialog(session)
-        }
+        // Phase 2 Beta - Pass view route callback to adapter
+        adapter = OpenSessionsAdapter(
+            onForceCheckOutClick = { session ->
+                showForceCheckOutDialog(session)
+            },
+            onViewRouteClick = { session ->
+                navigateToSessionRoute(session)
+            }
+        )
         binding.rvOpenSessions.layoutManager = LinearLayoutManager(requireContext())
         binding.rvOpenSessions.adapter = adapter
     }
@@ -78,6 +85,41 @@ class OpenSessionsFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    // Phase 2 Beta - Navigate to Session Route
+    /**
+     * Navigate to SessionRouteFragment to visualize the session's tracked route.
+     * 
+     * Guards:
+     * - If sessionId is null → show non-blocking Snackbar and do NOT navigate
+     * 
+     * Admin fix: Pass userId (employee's ID) to enable admin viewing employee routes
+     * 
+     * @param session The open session to view route for
+     */
+    private fun navigateToSessionRoute(session: com.fieldtrack.app.data.model.OpenSession) {
+        // Guard: Check if sessionId is available
+        if (session.sessionId.isNullOrBlank()) {
+            Snackbar.make(
+                binding.root,
+                "Route data not available for this session",
+                Snackbar.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        // Navigate with sessionId AND userId arguments using Bundle
+        // Admin fix: Pass userId (employee's ID) to repository
+        val bundle = Bundle().apply {
+            putString("sessionId", session.sessionId)
+            putString("userId", session.userId)  // Admin fix: Pass employee's userId
+        }
+        
+        findNavController().navigate(
+            com.fieldtrack.app.R.id.action_openSessions_to_sessionRoute,
+            bundle
+        )
     }
 
     private fun observeViewModel() {
