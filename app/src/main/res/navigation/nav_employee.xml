@@ -9,7 +9,12 @@
         android:id="@+id/attendanceFragment"
         android:name="com.fieldtrack.app.ui.employee.AttendanceFragment"
         android:label="@string/attendance"
-        tools:layout="@layout/fragment_attendance" />
+        tools:layout="@layout/fragment_attendance">
+
+        <action
+            android:id="@+id/action_attendanceFragment_to_sessionRoute"
+            app:destination="@id/sessionRouteFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/myLocationFragment"
@@ -28,5 +33,17 @@
         android:name="com.fieldtrack.app.ui.employee.ProfileFragment"
         android:label="Profile"
         tools:layout="@layout/fragment_profile" />
+
+    <!-- Phase 2 Beta - Session Route Visualization -->
+    <fragment
+        android:id="@+id/sessionRouteFragment"
+        android:name="com.fieldtrack.app.ui.route.SessionRouteFragment"
+        android:label="My Route"
+        tools:layout="@layout/fragment_session_route">
+
+        <argument
+            android:name="sessionId"
+            app:argType="string" />
+    </fragment>
 
 </navigation>

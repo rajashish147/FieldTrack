@@ -53,10 +53,12 @@ class RouteViewModel(
      * Idempotent: Can be called multiple times (e.g., retry after error).
      * 
      * @param sessionId The attendance session ID to load route for
+     * @param userId The user ID who owns the locations (for admin viewing employee routes, null = current user)
      * @param accuracyThreshold Maximum GPS accuracy (meters) to include
      */
     fun loadRoute(
         sessionId: String?,
+        userId: String? = null,
         accuracyThreshold: Float = com.fieldtrack.app.util.RouteCalculator.DEFAULT_ACCURACY_THRESHOLD
     ) {
         // Validate input
@@ -71,8 +73,10 @@ class RouteViewModel(
         viewModelScope.launch {
             try {
                 // Fetch route (repository handles threading)
+                // Admin fix: Pass userId to repository (employee's ID for admin)
                 val result = sessionRouteRepository.getSessionRoute(
                     sessionId = sessionId,
+                    userId = userId,
                     accuracyThreshold = accuracyThreshold
                 )
 
@@ -84,6 +88,14 @@ class RouteViewModel(
                 }
 
             } catch (e: Exception) {
+                // Production logging: Structured error for crash monitoring
+                // Security: Don't interpolate exception messages (may contain sensitive data)
+                android.util.Log.e(
+                    "RouteViewModel",
+                    "Failed to load route for session: $sessionId, userId: $userId",
+                    e
+                )
+                
                 // Recoverable error (user can retry)
                 _routeState.value = RouteState.Error(
                     message = e.message ?: "Failed to load route",
@@ -97,16 +109,18 @@ class RouteViewModel(
      * Retry loading route after error.
      * 
      * Convenience method that re-invokes loadRoute with last parameters.
-     * UI should store sessionId and call this on retry button click.
+     * UI should store sessionId and userId, then call this on retry button click.
      * 
      * @param sessionId The attendance session ID to retry
+     * @param userId The user ID who owns the locations (for admin viewing employee routes, null = current user)
      * @param accuracyThreshold Maximum GPS accuracy (meters) to include
      */
     fun retry(
         sessionId: String?,
+        userId: String? = null,
         accuracyThreshold: Float = com.fieldtrack.app.util.RouteCalculator.DEFAULT_ACCURACY_THRESHOLD
     ) {
-        loadRoute(sessionId, accuracyThreshold)
+        loadRoute(sessionId, userId, accuracyThreshold)
     }
 
     /**

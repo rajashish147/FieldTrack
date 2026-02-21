@@ -21,6 +21,8 @@ import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.data.repository.ReportRepository
 import com.fieldtrack.app.data.repository.ExpenseRepository
+import com.fieldtrack.app.data.repository.CheckOutResult
+import com.fieldtrack.app.data.repository.CoordinatedCheckOutResult
 import com.fieldtrack.app.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -174,13 +176,14 @@ class EmployeeHomeViewModel(
                 val openSession = attendanceRepository.getOpenSession()
                 
                 if (openSession != null) {
-                    sessionManager.currentSessionId = openSession.id
-                    
-                    if (sessionManager.checkInTime == 0L) {
-                        val checkInTime = parseIso8601Timestamp(openSession.checkInAt)
-                        sessionManager.checkInTime = checkInTime
-                        _checkInTime.value = checkInTime
+                    val checkInTimeMillis = if (sessionManager.checkInTime == 0L) {
+                        parseIso8601Timestamp(openSession.checkInAt)
+                    } else {
+                        sessionManager.checkInTime
                     }
+                    
+                    sessionManager.setCheckedIn(openSession.id, checkInTimeMillis)
+                    _checkInTime.value = checkInTimeMillis
                     
                     if (BuildConfig.DEBUG) {
                         android.util.Log.i("EmployeeHomeVM", "Session ID restored")
@@ -203,9 +206,7 @@ class EmployeeHomeViewModel(
      * Clear local session state when recovery fails or no open session exists.
      */
     private fun clearLocalSessionState() {
-        sessionManager.isCheckedIn = false
-        sessionManager.currentSessionId = null
-        sessionManager.checkInTime = 0L
+        sessionManager.setCheckedOut(System.currentTimeMillis())
         
         _isCheckedIn.value = false
         stopTimer()
@@ -262,8 +263,7 @@ class EmployeeHomeViewModel(
                 when (val result = attendanceRepository.checkIn()) {
                     is com.fieldtrack.app.data.repository.CheckInResult.Success -> {
                         val checkInTime = parseIso8601Timestamp(result.session.checkInAt)
-                        sessionManager.isCheckedIn = true
-                        sessionManager.checkInTime = checkInTime
+                        sessionManager.setCheckedIn(result.session.id, checkInTime)
                         _isCheckedIn.value = true
                         _checkInTime.value = checkInTime
                         startTimer()
@@ -295,55 +295,94 @@ class EmployeeHomeViewModel(
     }
 
     /**
-     * STEP 3: Check-out via RPC.
+     * STEP 3: Check-out via RPC with coordinated final sync.
      * Uses SQLSTATE-based error handling and recovery via STEP 1 methods.
+     * 
+     * CRITICAL: Uses coordinatedCheckOut to prevent race condition where
+     * auth is cleared before final sync completes.
      * 
      * P2.2 - Session drift correction:
      * Handles SessionAlreadyClosedByAdmin when admin force-closes session.
+     * 
+     * @param context Android context for service control
      */
-    fun checkOut() {
+    fun checkOut(context: Context) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                when (val result = attendanceRepository.checkOut()) {
-                    is com.fieldtrack.app.data.repository.CheckOutResult.Success -> {
-                        sessionManager.isCheckedIn = false
-                        sessionManager.lastCheckOutTime = System.currentTimeMillis()
+                when (val result = attendanceRepository.coordinatedCheckOut(context)) {
+                    is CoordinatedCheckOutResult.Success -> {
+                        // Session already cleared by repository
                         _isCheckedIn.value = false
                         stopTimer()
-                        _toastMessage.value = "Checked out successfully"
+                        
+                        // Build sync message
+                        val syncMsg = when (result.syncResult) {
+                            is SyncResult.Success -> "${result.syncResult.synced} locations synced"
+                            is SyncResult.Partial -> "${result.syncResult.synced} synced, ${result.syncResult.failed} failed"
+                            is SyncResult.Failed -> "sync failed: ${result.syncResult.reason}"
+                        }
+                        
+                        _toastMessage.value = "Checked out successfully ($syncMsg)"
                     }
-                    // P2.2 - Session drift correction
-                    is com.fieldtrack.app.data.repository.CheckOutResult.SessionAlreadyClosedByAdmin -> {
-                        // State already synced in repository, just update UI
-                        _isCheckedIn.value = false
-                        stopTimer()
-                        _toastMessage.value = "Your session was closed by an administrator"
+                    
+                    is CoordinatedCheckOutResult.BackendFailed -> {
+                        // Handle backend checkout failure
+                        handleCheckOutResult(result.checkOutResult)
                     }
-                    is com.fieldtrack.app.data.repository.CheckOutResult.NotCheckedIn -> {
-                        attendanceRepository.syncStateFromServer()
-                        updateUIFromSessionManager()
-                        _toastMessage.value = "Not checked in"
-                    }
-                    is com.fieldtrack.app.data.repository.CheckOutResult.AccountInactive -> {
-                        _toastMessage.value = "Account inactive or not authorized"
-                    }
-                    is com.fieldtrack.app.data.repository.CheckOutResult.NotAuthenticated -> {
-                        _toastMessage.value = "Not authenticated"
-                    }
-                    is com.fieldtrack.app.data.repository.CheckOutResult.NetworkError -> {
-                        attendanceRepository.syncStateFromServer()
-                        updateUIFromSessionManager()
-                        _toastMessage.value = "Network error: ${result.message}"
-                    }
-                    is com.fieldtrack.app.data.repository.CheckOutResult.Error -> {
-                        _toastMessage.value = "Check-out failed: ${result.message}"
+                    
+                    is CoordinatedCheckOutResult.AlreadyInProgress -> {
+                        _toastMessage.value = "Checkout already in progress"
                     }
                 }
             } catch (e: Exception) {
                 _toastMessage.value = "Check-out failed: ${e.message}"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Handle individual checkout result types.
+     */
+    private fun handleCheckOutResult(result: CheckOutResult) {
+        when (result) {
+            is CheckOutResult.Success -> {
+                // Should not reach here in BackendFailed path
+                sessionManager.setCheckedOut(System.currentTimeMillis())
+                _isCheckedIn.value = false
+                stopTimer()
+                _toastMessage.value = "Checked out successfully"
+            }
+            is CheckOutResult.SessionAlreadyClosedByAdmin -> {
+                // State already synced in repository, just update UI
+                _isCheckedIn.value = false
+                stopTimer()
+                _toastMessage.value = "Your session was closed by an administrator"
+            }
+            is CheckOutResult.NotCheckedIn -> {
+                viewModelScope.launch {
+                    attendanceRepository.syncStateFromServer()
+                    updateUIFromSessionManager()
+                }
+                _toastMessage.value = "Not checked in"
+            }
+            is CheckOutResult.AccountInactive -> {
+                _toastMessage.value = "Account inactive or not authorized"
+            }
+            is CheckOutResult.NotAuthenticated -> {
+                _toastMessage.value = "Not authenticated"
+            }
+            is CheckOutResult.NetworkError -> {
+                viewModelScope.launch {
+                    attendanceRepository.syncStateFromServer()
+                    updateUIFromSessionManager()
+                }
+                _toastMessage.value = "Network error: ${result.message}"
+            }
+            is CheckOutResult.Error -> {
+                _toastMessage.value = "Check-out failed: ${result.message}"
             }
         }
     }

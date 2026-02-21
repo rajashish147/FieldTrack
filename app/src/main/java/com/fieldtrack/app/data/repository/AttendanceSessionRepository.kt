@@ -1,10 +1,13 @@
 package com.fieldtrack.app.data.repository
 
+import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.fieldtrack.app.data.model.AttendanceSession
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.AttendanceApi
 import com.fieldtrack.app.data.remote.dto.AttendanceSessionDto
+import com.fieldtrack.app.service.LocationTrackingService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.Response
@@ -24,7 +27,8 @@ import java.util.TimeZone
  */
 class AttendanceSessionRepository(
     private val attendanceApi: AttendanceApi,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val locationRepository: LocationRepository
 ) {
 
     companion object {
@@ -118,20 +122,103 @@ class AttendanceSessionRepository(
             if (openSession == null) {
                 // Server confirms no open session - session was closed externally (likely by admin)
                 Log.i(TAG, "checkOut: server confirms no open session, clearing local state")
-                sessionManager.isCheckedIn = false
-                sessionManager.checkInTime = 0L
+                sessionManager.setCheckedOut(System.currentTimeMillis())
                 return@withContext CheckOutResult.SessionAlreadyClosedByAdmin
             } else {
                 // Server has open session - local state was wrong, repair it
                 Log.w(TAG, "checkOut: server has open session, repairing local state")
-                sessionManager.isCheckedIn = true
                 val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
-                sessionManager.checkInTime = checkInTimeMillis
+                sessionManager.setCheckedIn(openSession.id, checkInTimeMillis)
                 return@withContext CheckOutResult.NotCheckedIn
             }
         }
 
         result
+    }
+
+    /**
+     * Coordinated checkout with guaranteed final sync.
+     * 
+     * CRITICAL ORDERING:
+     * 1. Backend checkout (session closed on server)
+     * 2. Final location sync (with valid auth)
+     * 3. Service stop
+     * 4. Session state cleanup
+     * 
+     * This prevents the race condition where auth is cleared before sync completes.
+     * 
+     * @param context Android context for service control
+     * @return CoordinatedCheckOutResult with sync metrics
+     */
+    suspend fun coordinatedCheckOut(context: Context): CoordinatedCheckOutResult = withContext(Dispatchers.IO) {
+        
+        // Phase 0: Lock session from being cleared
+        if (!sessionManager.beginCheckout()) {
+            Log.w(TAG, "coordinatedCheckOut: already in progress")
+            return@withContext CoordinatedCheckOutResult.AlreadyInProgress
+        }
+        
+        try {
+            // Phase 1: Backend checkout
+            Log.i(TAG, "coordinatedCheckOut: Phase 1 - backend checkout")
+            val checkoutResult = executeRpcCall(
+                apiCall = { attendanceApi.checkOut() },
+                operationName = "coordinatedCheckOut",
+                onSuccess = { session ->
+                    Log.i(TAG, "coordinatedCheckOut: backend success, sessionId=${session.id}")
+                    CheckOutResult.Success(session)
+                },
+                errorMapping = mapOf(
+                    "P0002" to { CheckOutResult.NotCheckedIn },
+                    "P0003" to { CheckOutResult.AccountInactive },
+                    "P0004" to { CheckOutResult.NotAuthenticated }
+                ),
+                onNetworkError = { CheckOutResult.NetworkError(it) },
+                onUnknownError = { CheckOutResult.Error(it) }
+            )
+            
+            // Handle backend errors
+            if (checkoutResult !is CheckOutResult.Success) {
+                Log.w(TAG, "coordinatedCheckOut: backend failed - $checkoutResult")
+                return@withContext CoordinatedCheckOutResult.BackendFailed(checkoutResult)
+            }
+            
+            // Phase 2: Final sync with valid auth
+            Log.i(TAG, "coordinatedCheckOut: Phase 2 - final sync (auth still valid)")
+            val syncResult = try {
+                // Use forceFinalSync which survives ViewModel cancellation
+                locationRepository.forceFinalSync()
+            } catch (e: Exception) {
+                Log.e(TAG, "coordinatedCheckOut: sync exception", e)
+                SyncResult.Failed("Sync exception: ${e.message}", 0)
+            }
+            
+            Log.i(TAG, "coordinatedCheckOut: sync complete - $syncResult")
+            
+            // Small delay to ensure network completion
+            kotlinx.coroutines.delay(100)
+            
+            // Phase 3: Stop service
+            Log.i(TAG, "coordinatedCheckOut: Phase 3 - stopping service")
+            val intent = Intent(context, LocationTrackingService::class.java).apply {
+                action = LocationTrackingService.ACTION_STOP
+            }
+            context.startService(intent)
+            
+            // Phase 4: Clear session state (AFTER sync completes)
+            Log.i(TAG, "coordinatedCheckOut: Phase 4 - clearing session state")
+            sessionManager.setCheckedOut(System.currentTimeMillis())
+            
+            CoordinatedCheckOutResult.Success(
+                session = checkoutResult.session,
+                syncResult = syncResult
+            )
+            
+        } finally {
+            // Always unlock checkout
+            sessionManager.completeCheckout()
+            Log.d(TAG, "coordinatedCheckOut: checkout lock released")
+        }
     }
 
     /**
@@ -143,13 +230,13 @@ class AttendanceSessionRepository(
             val openSession = getOpenSession()
             val isCheckedIn = openSession != null
 
-            sessionManager.isCheckedIn = isCheckedIn
-            
-            // Restore checkInTime from server session to fix timer after app data clear
             if (isCheckedIn && openSession != null) {
                 val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
-                sessionManager.checkInTime = checkInTimeMillis
-                Log.i(TAG, "syncStateFromServer: restored checkInTime=$checkInTimeMillis")
+                sessionManager.setCheckedIn(openSession.id, checkInTimeMillis)
+                Log.i(TAG, "syncStateFromServer: restored session state, sessionId=${openSession.id}")
+            } else {
+                sessionManager.setCheckedOut(System.currentTimeMillis())
+                Log.i(TAG, "syncStateFromServer: cleared session state")
             }
             
             Log.i(TAG, "syncStateFromServer: isCheckedIn=$isCheckedIn, session=${openSession?.id}")
@@ -176,13 +263,14 @@ class AttendanceSessionRepository(
 
                 if (localState != serverState) {
                     Log.w(TAG, "DRIFT DETECTED: local=$localState, server=$serverState, userId=$userId")
-                    sessionManager.isCheckedIn = serverState
                     
-                    // Restore checkInTime when repairing drift to checked-in state
                     if (serverState && openSession != null) {
                         val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
-                        sessionManager.checkInTime = checkInTimeMillis
-                        Log.i(TAG, "detectAndRepairDrift: restored checkInTime=$checkInTimeMillis")
+                        sessionManager.setCheckedIn(openSession.id, checkInTimeMillis)
+                        Log.i(TAG, "detectAndRepairDrift: restored session state, sessionId=${openSession.id}")
+                    } else {
+                        sessionManager.setCheckedOut(System.currentTimeMillis())
+                        Log.i(TAG, "detectAndRepairDrift: cleared session state")
                     }
                     
                     DriftResult.Repaired(localState, serverState, openSession)
@@ -329,4 +417,21 @@ sealed class CheckOutResult {
     data object SessionAlreadyClosedByAdmin : CheckOutResult()
     data class NetworkError(val message: String) : CheckOutResult()
     data class Error(val message: String) : CheckOutResult()
+}
+
+/**
+ * Result of coordinated checkout operation.
+ * Includes both backend result and sync metrics.
+ */
+sealed class CoordinatedCheckOutResult {
+    data class Success(
+        val session: AttendanceSession,
+        val syncResult: SyncResult
+    ) : CoordinatedCheckOutResult()
+    
+    data class BackendFailed(
+        val checkOutResult: CheckOutResult
+    ) : CoordinatedCheckOutResult()
+    
+    data object AlreadyInProgress : CoordinatedCheckOutResult()
 }

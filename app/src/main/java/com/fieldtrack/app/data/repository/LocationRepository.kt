@@ -11,7 +11,9 @@ import com.fieldtrack.app.data.remote.api.LocationApi
 import com.fieldtrack.app.data.remote.api.UserApi
 import com.fieldtrack.app.data.remote.dto.LocationDto
 import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -29,6 +31,13 @@ class LocationRepository(
         const val BATCH_SIZE = 100
         private const val MAX_ERROR_MESSAGE_LENGTH = 255
     }
+
+    /**
+     * Dedicated sync scope that survives ViewModel cancellation.
+     * CRITICAL: Final sync must complete even if UI is destroyed.
+     * Uses SupervisorJob to prevent cancellation propagation.
+     */
+    private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Update the current user's check-in status on the server */
     suspend fun updateCheckInStatus(isCheckedIn: Boolean): NetworkResult<Unit> =
@@ -90,6 +99,7 @@ class LocationRepository(
                 
                 // 4. Upload to server
                 val dtos = toSync.map { LocationDto.fromModel(it.toModel()) }
+                Log.d("DTO_DEBUG", "Syncing DTOs: ${com.google.gson.Gson().toJson(dtos)}")
                 val response = locationApi.insertLocations(dtos)
                 
                 if (response.isSuccessful) {
@@ -139,6 +149,34 @@ class LocationRepository(
                 )
             }
         }
+
+    /**
+     * Force final sync that survives ViewModel cancellation.
+     * 
+     * CRITICAL: This method uses a dedicated sync scope that is NOT tied
+     * to ViewModel lifecycle. It will complete even if:
+     * - Activity finishes
+     * - Navigation happens
+     * - Configuration changes
+     * - ViewModel is cleared
+     * 
+     * This is essential for checkout final sync to prevent data loss.
+     * 
+     * @return SyncResult with sync outcome
+     */
+    suspend fun forceFinalSync(): SyncResult = withContext(syncScope.coroutineContext) {
+        Log.i(TAG, "forceFinalSync: starting (independent of UI lifecycle)")
+        
+        val result = try {
+            syncUnsyncedLocations()
+        } catch (e: Exception) {
+            Log.e(TAG, "forceFinalSync: exception", e)
+            SyncResult.Failed("Force sync exception: ${e.message}", 0)
+        }
+        
+        Log.i(TAG, "forceFinalSync: completed - $result")
+        result
+    }
 
     /**
      * Handle sync failure: increment attempts, set FAILED or ABANDONED.
@@ -266,6 +304,22 @@ class LocationRepository(
                 }
             } catch (e: Exception) {
                 NetworkResult.Error(e.message ?: "Unknown error")
+            }
+        }
+
+    suspend fun getLocationsForSession(sessionId: String): List<Location> =
+        withContext(Dispatchers.IO) {
+            try {
+                val response = locationApi.getLocationsBySession(
+                    sessionId = "eq.$sessionId"
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    response.body()!!.map { it.toModel() }
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                throw e
             }
         }
 }

@@ -38,7 +38,7 @@ class EmployeeHomeActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == LocationTrackingService.ACTION_REQUEST_CHECKOUT) {
                 // Trigger check-out via ViewModel
-                viewModel.checkOut()
+                context?.let { viewModel.checkOut(it) }
             }
         }
     }

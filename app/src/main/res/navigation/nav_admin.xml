@@ -52,6 +52,23 @@
         android:id="@+id/openSessionsFragment"
         android:name="com.fieldtrack.app.ui.admin.OpenSessionsFragment"
         android:label="Open Sessions"
-        tools:layout="@layout/fragment_open_sessions" />
+        tools:layout="@layout/fragment_open_sessions">
+
+        <action
+            android:id="@+id/action_openSessions_to_sessionRoute"
+            app:destination="@id/sessionRouteFragment" />
+    </fragment>
+
+    <!-- Phase 2 Beta - Session Route Visualization -->
+    <fragment
+        android:id="@+id/sessionRouteFragment"
+        android:name="com.fieldtrack.app.ui.route.SessionRouteFragment"
+        android:label="Session Route"
+        tools:layout="@layout/fragment_session_route">
+
+        <argument
+            android:name="sessionId"
+            app:argType="string" />
+    </fragment>
 
 </navigation>

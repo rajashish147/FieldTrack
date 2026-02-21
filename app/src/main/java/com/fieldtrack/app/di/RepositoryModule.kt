@@ -15,5 +15,9 @@ val repositoryModule = module {
     single { ExpenseRepository(get(), get(), get()) }
     // P2.1 - Admin Open Sessions: Inject AttendanceApi into AdminRepository
     single { AdminRepository(get(), get()) }
-    single { com.fieldtrack.app.data.repository.AttendanceSessionRepository(get(), get()) }
+    // Inject LocationRepository for coordinated checkout
+    single { com.fieldtrack.app.data.repository.AttendanceSessionRepository(get(), get(), get()) }
+    
+    // Phase 2 Beta: Session route visualization
+    single { com.fieldtrack.app.data.repository.SessionRouteRepository(get(), get()) }
 }

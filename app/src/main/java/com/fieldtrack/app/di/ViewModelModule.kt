@@ -15,11 +15,15 @@ val viewModelModule = module {
 
     viewModel { LoginViewModel(get()) }
     viewModel { ProfileSetupViewModel(get(), get(), get()) }
-    viewModel { DashboardViewModel(get(), get(), get(), get(), get()) }
+    viewModel { DashboardViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { EmployeeHomeViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { MapViewModel(get()) }
     viewModel { ReportViewModel(get(), get(), get()) }
     viewModel { ExpenseViewModel(get(), get(), get()) }
     viewModel { AdminViewModel(get(), get(), get(), get()) }
+    viewModel { com.fieldtrack.app.ui.admin.AdminSessionRouteViewModel(get()) }
+    
+    // Phase 2 Beta: Session route visualization
+    viewModel { com.fieldtrack.app.ui.route.RouteViewModel(get()) }
 }
 

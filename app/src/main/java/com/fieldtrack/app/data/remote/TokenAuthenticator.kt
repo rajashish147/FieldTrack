@@ -19,6 +19,20 @@ class TokenAuthenticator(
     private val gson = Gson()
 
     override fun authenticate(route: Route?, response: Response): Request? {
+        // CRITICAL: Don't clear session during checkout
+        // Checkout lock prevents premature session clearing
+        if (sessionManager.isCheckoutInProgress()) {
+            // During checkout, attempt refresh but don't clear session on failure
+            // This allows final sync to complete even if token expires
+            val refreshToken = sessionManager.refreshToken ?: return null
+            val newToken = refreshAccessToken(refreshToken) ?: return null
+            sessionManager.accessToken = newToken
+            return response.request.newBuilder()
+                .header("Authorization", "Bearer $newToken")
+                .build()
+        }
+        
+        // Normal flow: clear session after 2 failed attempts
         if (responseCount(response) >= 2) {
             sessionManager.clearSession()
             return null

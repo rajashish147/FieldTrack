@@ -2,6 +2,7 @@ package com.fieldtrack.app.di
 
 import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.data.remote.AuthInterceptor
+import com.fieldtrack.app.data.remote.SecureLoggingInterceptor
 import com.fieldtrack.app.data.remote.TokenAuthenticator
 import com.fieldtrack.app.util.ConfigValidator
 import com.fieldtrack.app.data.remote.api.AuthApi
@@ -11,7 +12,6 @@ import com.fieldtrack.app.data.remote.api.ReportApi
 import com.fieldtrack.app.data.remote.api.StorageApi
 import com.fieldtrack.app.data.remote.api.UserApi
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -19,15 +19,8 @@ import java.util.concurrent.TimeUnit
 
 val networkModule = module {
 
-    single {
-        HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-    }
+    // Secure logging interceptor - redacts sensitive data in ALL build variants
+    single { SecureLoggingInterceptor() }
 
     single { AuthInterceptor(get()) }
 
@@ -36,7 +29,7 @@ val networkModule = module {
     single {
         OkHttpClient.Builder()
             .addInterceptor(get<AuthInterceptor>())
-            .addInterceptor(get<HttpLoggingInterceptor>())
+            .addInterceptor(get<SecureLoggingInterceptor>())
             .authenticator(get<TokenAuthenticator>())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
