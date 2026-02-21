@@ -18,6 +18,7 @@ import com.fieldtrack.app.data.remote.api.StorageApi
 import com.fieldtrack.app.data.remote.api.UserApi
 import com.fieldtrack.app.data.remote.dto.UpdateProfileImageDto
 import com.fieldtrack.app.data.repository.AuthRepository
+import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.data.repository.ReportRepository
 import com.fieldtrack.app.data.repository.ExpenseRepository
@@ -175,11 +176,31 @@ class EmployeeHomeViewModel(
         _isSyncing.value = true
         viewModelScope.launch {
             try {
-                locationRepository.syncUnsyncedLocations()
-                reportRepository.syncUnsyncedReports()
-                expenseRepository.syncUnsyncedExpenses()
+                val locationResult = locationRepository.syncUnsyncedLocations()
+                val reportResult = reportRepository.syncUnsyncedReports()
+                val expenseResult = expenseRepository.syncUnsyncedExpenses()
+                
+                // Count total synced
+                val totalSynced = locationResult.getSyncedCount() + 
+                    reportResult.getSyncedCount() +
+                    expenseResult.getSyncedCount()
+                
                 loadUnsyncedCount()
-                _toastMessage.value = "Sync completed"
+                
+                // Determine message based on results
+                val hasFailures = locationResult is SyncResult.Failed || 
+                    reportResult is SyncResult.Failed || 
+                    expenseResult is SyncResult.Failed
+                
+                val hasPartial = locationResult is SyncResult.Partial || 
+                    reportResult is SyncResult.Partial || 
+                    expenseResult is SyncResult.Partial
+                
+                _toastMessage.value = when {
+                    hasFailures -> "Sync failed for some items"
+                    hasPartial -> "Sync partially completed ($totalSynced items synced)"
+                    else -> "Sync completed successfully ($totalSynced items)"
+                }
             } catch (e: Exception) {
                 _toastMessage.value = "Sync failed: ${e.message}"
             }

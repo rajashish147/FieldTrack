@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -14,6 +15,7 @@ import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
 import com.fieldtrack.app.data.local.AppDatabase
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.LocationRepository
+import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.service.LocationSyncWorker
 import com.fieldtrack.app.service.LocationTrackingService
 import kotlinx.coroutines.launch
@@ -114,7 +116,12 @@ class DashboardViewModel(
         context.startService(intent)
 
         viewModelScope.launch {
-            locationRepository.syncUnsyncedLocations()
+            val result = locationRepository.syncUnsyncedLocations()
+            when (result) {
+                is SyncResult.Success -> Log.d("DashboardViewModel", "Checkout sync: ${result.synced} synced")
+                is SyncResult.Partial -> Log.w("DashboardViewModel", "Checkout sync partial: ${result.synced} synced")
+                is SyncResult.Failed -> Log.e("DashboardViewModel", "Checkout sync failed: ${result.reason}")
+            }
             syncCheckInStatusToBackend(false)
             loadUnsyncedCount()
             _isLoading.value = false
@@ -127,7 +134,12 @@ class DashboardViewModel(
     fun syncData() {
         _isLoading.value = true
         viewModelScope.launch {
-            locationRepository.syncUnsyncedLocations()
+            val result = locationRepository.syncUnsyncedLocations()
+            when (result) {
+                is SyncResult.Success -> Log.d("DashboardViewModel", "Manual sync: ${result.synced} synced")
+                is SyncResult.Partial -> Log.w("DashboardViewModel", "Manual sync partial: ${result.synced} synced")
+                is SyncResult.Failed -> Log.e("DashboardViewModel", "Manual sync failed: ${result.reason}")
+            }
             loadUnsyncedCount()
             _isLoading.value = false
         }

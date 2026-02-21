@@ -59,10 +59,10 @@ class LocationRepository(
      * Hardened sync with deterministic state transitions.
      * Implements: LOCAL_ONLY → SYNCING → SYNCED | FAILED | ABANDONED
      */
-    suspend fun syncUnsyncedLocations(): NetworkResult<SyncResult> =
+    suspend fun syncUnsyncedLocations(): SyncResult =
         withContext(Dispatchers.IO) {
             val userId = sessionManager.userId 
-                ?: return@withContext NetworkResult.Error("No user ID")
+                ?: return@withContext SyncResult.Failed("No user ID", 0)
             
             try {
                 // 1. Reset stale SYNCING states (crash recovery)
@@ -78,7 +78,7 @@ class LocationRepository(
                 
                 if (toSync.isEmpty()) {
                     Log.d(TAG, "No locations to sync")
-                    return@withContext NetworkResult.Success(SyncResult(0, 0, 0))
+                    return@withContext SyncResult.Success(0, System.currentTimeMillis())
                 }
                 
                 Log.d(TAG, "Syncing ${toSync.size} locations")
@@ -100,19 +100,22 @@ class LocationRepository(
                     
                     Log.d(TAG, "Successfully synced ${ids.size} locations")
                     
-                    NetworkResult.Success(SyncResult(
+                    SyncResult.Success(
                         synced = ids.size,
-                        failed = 0,
-                        abandoned = 0
-                    ))
+                        timestamp = System.currentTimeMillis()
+                    )
                 } else {
                     // 7. Handle HTTP failure
                     val errorMsg = "HTTP ${response.code()}: ${response.message()}"
                     Log.w(TAG, "Sync failed: $errorMsg")
                     
-                    handleSyncFailure(toSync, errorMsg)
+                    val (failed, abandoned) = handleSyncFailure(toSync, errorMsg)
                     
-                    NetworkResult.Error(errorMsg)
+                    SyncResult.Failed(
+                        reason = errorMsg,
+                        failed = failed + abandoned,
+                        errors = listOf(errorMsg)
+                    )
                 }
             } catch (e: Exception) {
                 // 8. Handle exception
@@ -126,20 +129,28 @@ class LocationRepository(
                     batchSize = BATCH_SIZE
                 )
                 
-                handleSyncFailure(toSync, errorMsg)
+                val (failed, abandoned) = handleSyncFailure(toSync, errorMsg)
                 
-                NetworkResult.Error(errorMsg)
+                SyncResult.Failed(
+                    reason = errorMsg,
+                    failed = failed + abandoned,
+                    errors = listOf(errorMsg)
+                )
             }
         }
 
     /**
      * Handle sync failure: increment attempts, set FAILED or ABANDONED.
+     * 
+     * @return Pair of (failed count, abandoned count)
      */
     private suspend fun handleSyncFailure(
         locations: List<LocationEntity>,
         errorMessage: String
-    ) {
+    ): Pair<Int, Int> {
         val now = System.currentTimeMillis()
+        var failedCount = 0
+        var abandonedCount = 0
         
         locations.forEach { location ->
             val newAttempts = location.syncAttempts + 1
@@ -158,9 +169,14 @@ class LocationRepository(
             )
             
             if (newState == SyncState.ABANDONED) {
+                abandonedCount++
                 Log.w(TAG, "Location ${location.id} abandoned after $newAttempts attempts")
+            } else {
+                failedCount++
             }
         }
+        
+        return Pair(failedCount, abandonedCount)
     }
 
     /**

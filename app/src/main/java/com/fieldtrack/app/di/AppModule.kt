@@ -3,6 +3,7 @@ package com.fieldtrack.app.di
 import androidx.room.Room
 import com.fieldtrack.app.data.local.AppDatabase
 import com.fieldtrack.app.data.remote.SessionManager
+import com.fieldtrack.app.data.repository.SyncMetrics
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -14,7 +15,10 @@ val appModule = module {
             AppDatabase::class.java,
             "fieldtrack_db"
         )
-            .addMigrations(AppDatabase.MIGRATION_1_2)  // Add sync state machine migration
+            .addMigrations(
+                AppDatabase.MIGRATION_1_2,  // Add sync state machine to locations
+                AppDatabase.MIGRATION_2_3   // Add sync state machine to reports/expenses
+            )
             .build()
     }
 
@@ -23,4 +27,5 @@ val appModule = module {
     single { get<AppDatabase>().expenseDao() }
 
     single { SessionManager(androidContext()) }
+    single { SyncMetrics(androidContext()) }
 }

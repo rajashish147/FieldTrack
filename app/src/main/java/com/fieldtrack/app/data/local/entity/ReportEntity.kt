@@ -13,7 +13,13 @@ data class ReportEntity(
     val date: String,
     val summary: String,
     val optionalImageUrl: String?,
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    
+    // Sync state tracking
+    val syncState: SyncState = SyncState.LOCAL_ONLY,
+    val syncAttempts: Int = 0,
+    val lastSyncAttempt: Long = 0L,
+    val syncError: String? = null
 ) {
     fun toModel(): Report = Report(
         id = id,
@@ -31,7 +37,8 @@ data class ReportEntity(
                 date = model.date,
                 summary = model.summary,
                 optionalImageUrl = model.optionalImageUrl,
-                isSynced = synced
+                isSynced = synced,
+                syncState = if (synced) SyncState.SYNCED else SyncState.LOCAL_ONLY
             )
     }
 }

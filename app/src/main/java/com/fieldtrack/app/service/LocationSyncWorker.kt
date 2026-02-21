@@ -14,6 +14,7 @@ import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.repository.ExpenseRepository
 import com.fieldtrack.app.data.repository.LocationRepository
 import com.fieldtrack.app.data.repository.ReportRepository
+import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.util.Constants
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -77,36 +78,46 @@ class LocationSyncWorker(
             val locationResult = locationRepository.syncUnsyncedLocations()
             
             when (locationResult) {
-                is NetworkResult.Success -> {
-                    val syncResult = locationResult.data
-                    Log.d(TAG, "Location sync: ${syncResult.synced} synced, " +
-                            "${syncResult.failed} failed, ${syncResult.abandoned} abandoned")
+                is SyncResult.Success -> {
+                    Log.d(TAG, "Location sync success: ${locationResult.synced} synced")
+                }
+                is SyncResult.Partial -> {
+                    Log.w(TAG, "Location sync partial: ${locationResult.synced} synced, " +
+                            "${locationResult.failed} failed, ${locationResult.abandoned} abandoned")
                     
-                    // Log warning if locations were abandoned
-                    if (syncResult.abandoned > 0) {
-                        Log.w(TAG, "${syncResult.abandoned} locations abandoned (too many failures)")
+                    if (locationResult.abandoned > 0) {
+                        Log.w(TAG, "${locationResult.abandoned} locations abandoned (too many failures)")
                     }
                 }
-                is NetworkResult.Error -> {
-                    Log.w(TAG, "Location sync failed: ${locationResult.message}")
-                }
-                else -> {
-                    // Handle Loading or other states (shouldn't happen in sync context)
-                    Log.w(TAG, "Location sync returned unexpected state: $locationResult")
+                is SyncResult.Failed -> {
+                    Log.e(TAG, "Location sync failed: ${locationResult.reason}")
+                    return Result.retry()
                 }
             }
 
             // Sync reports and expenses
             val reportResult = reportRepository.syncUnsyncedReports()
             val expenseResult = expenseRepository.syncUnsyncedExpenses()
+            
+            when (reportResult) {
+                is SyncResult.Success -> Log.d(TAG, "Report sync success: ${reportResult.synced} synced")
+                is SyncResult.Partial -> Log.w(TAG, "Report sync partial: ${reportResult.synced} synced, ${reportResult.failed} failed")
+                is SyncResult.Failed -> Log.e(TAG, "Report sync failed: ${reportResult.reason}")
+            }
+            
+            when (expenseResult) {
+                is SyncResult.Success -> Log.d(TAG, "Expense sync success: ${expenseResult.synced} synced")
+                is SyncResult.Partial -> Log.w(TAG, "Expense sync partial: ${expenseResult.synced} synced, ${expenseResult.failed} failed")
+                is SyncResult.Failed -> Log.e(TAG, "Expense sync failed: ${expenseResult.reason}")
+            }
 
             // Cleanup old synced data
             cleanupOldData()
 
             // Determine result based on all sync operations
-            val allSuccess = locationResult is NetworkResult.Success &&
-                    reportResult is NetworkResult.Success &&
-                    expenseResult is NetworkResult.Success
+            val allSuccess = locationResult is SyncResult.Success &&
+                    reportResult is SyncResult.Success &&
+                    expenseResult is SyncResult.Success
 
             if (allSuccess) {
                 Log.d(TAG, "All syncs completed successfully")

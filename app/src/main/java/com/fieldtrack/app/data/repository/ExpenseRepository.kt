@@ -1,7 +1,9 @@
 package com.fieldtrack.app.data.repository
 
+import android.util.Log
 import com.fieldtrack.app.data.local.dao.ExpenseDao
 import com.fieldtrack.app.data.local.entity.ExpenseEntity
+import com.fieldtrack.app.data.local.entity.SyncState
 import com.fieldtrack.app.data.model.Expense
 import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.remote.SessionManager
@@ -17,6 +19,12 @@ class ExpenseRepository(
     private val expenseApi: ExpenseApi,
     private val sessionManager: SessionManager
 ) {
+    companion object {
+        const val TAG = "ExpenseRepository"
+        const val MAX_SYNC_ATTEMPTS = 5
+        const val SYNC_TIMEOUT_MS = 5 * 60 * 1000L  // 5 minutes
+        const val BATCH_SIZE = 50
+    }
 
     suspend fun saveExpenseLocally(expense: Expense) {
         withContext(Dispatchers.IO) {
@@ -51,37 +59,115 @@ class ExpenseRepository(
             entities.map { it.toModel() }
         }
 
-    suspend fun syncUnsyncedExpenses(): NetworkResult<Unit> =
+    /**
+     * Hardened sync with deterministic state transitions.
+     * Implements: LOCAL_ONLY → SYNCING → SYNCED | FAILED | ABANDONED
+     */
+    suspend fun syncUnsyncedExpenses(): SyncResult =
         withContext(Dispatchers.IO) {
+            val userId = sessionManager.userId 
+                ?: return@withContext SyncResult.Failed("No user ID", 0)
+            
             try {
-                val userId = sessionManager.userId
-                    ?: return@withContext NetworkResult.Error("No user ID")
-                val unsynced = expenseDao.getUnsyncedExpenses(userId)
-                if (unsynced.isEmpty()) return@withContext NetworkResult.Success(Unit)
-
-                var allSynced = true
-                val syncedIds = mutableListOf<String>()
-
-                for (entity in unsynced) {
-                    val dto = ExpenseDto.fromModel(entity.toModel())
-                    val response = expenseApi.insertExpense(dto)
-                    if (response.isSuccessful) {
-                        syncedIds.add(entity.id)
-                    } else {
-                        allSynced = false
+                // 1. Reset stale SYNCING states (crash recovery)
+                val timeoutThreshold = System.currentTimeMillis() - SYNC_TIMEOUT_MS
+                expenseDao.resetStaleSyncingState(timeoutThreshold)
+                
+                // 2. Get syncable expenses
+                val toSync = expenseDao.getSyncableExpenses(
+                    userId = userId,
+                    maxAttempts = MAX_SYNC_ATTEMPTS,
+                    batchSize = BATCH_SIZE
+                )
+                
+                if (toSync.isEmpty()) {
+                    Log.d(TAG, "No expenses to sync")
+                    return@withContext SyncResult.Success(0, System.currentTimeMillis())
+                }
+                
+                Log.d(TAG, "Syncing ${toSync.size} expenses")
+                
+                // 3. Mark as SYNCING
+                val ids = toSync.map { it.id }
+                expenseDao.updateSyncState(ids, SyncState.SYNCING)
+                
+                // 4. Sync individually to handle partial failures
+                var syncedCount = 0
+                var failedCount = 0
+                var abandonedCount = 0
+                val errors = mutableListOf<String>()
+                
+                for (entity in toSync) {
+                    try {
+                        val dto = ExpenseDto.fromModel(entity.toModel())
+                        val response = expenseApi.insertExpense(dto)
+                        
+                        if (response.isSuccessful) {
+                            expenseDao.markAsSyncedNew(listOf(entity.id))
+                            syncedCount++
+                        } else {
+                            val errorMsg = "HTTP ${response.code()}"
+                            errors.add(errorMsg)
+                            val (failed, abandoned) = handleSyncFailure(entity, errorMsg)
+                            failedCount += failed
+                            abandonedCount += abandoned
+                        }
+                    } catch (e: Exception) {
+                        val errorMsg = e.message ?: "Unknown error"
+                        errors.add(errorMsg)
+                        val (failed, abandoned) = handleSyncFailure(entity, errorMsg)
+                        failedCount += failed
+                        abandonedCount += abandoned
                     }
                 }
-
-                if (syncedIds.isNotEmpty()) {
-                    expenseDao.markAsSynced(syncedIds)
+                
+                Log.d(TAG, "Expense sync complete: $syncedCount synced, $failedCount failed, $abandonedCount abandoned")
+                
+                // 5. Return appropriate result
+                when {
+                    syncedCount == toSync.size -> SyncResult.Success(syncedCount, System.currentTimeMillis())
+                    syncedCount > 0 -> SyncResult.Partial(syncedCount, failedCount, abandonedCount, errors.take(10))
+                    else -> SyncResult.Failed("All expenses failed to sync", failedCount + abandonedCount, errors.take(10))
                 }
-
-                if (allSynced) NetworkResult.Success(Unit)
-                else NetworkResult.Error("Some expenses failed to sync")
             } catch (e: Exception) {
-                NetworkResult.Error(e.message ?: "Sync error")
+                val errorMsg = e.message ?: "Unknown error"
+                Log.e(TAG, "Sync exception: $errorMsg", e)
+                SyncResult.Failed(errorMsg, 0)
             }
         }
+    
+    /**
+     * Handle sync failure for a single expense.
+     * 
+     * @return Pair of (failed count, abandoned count)
+     */
+    private suspend fun handleSyncFailure(
+        expense: ExpenseEntity,
+        errorMessage: String
+    ): Pair<Int, Int> {
+        val now = System.currentTimeMillis()
+        val newAttempts = expense.syncAttempts + 1
+        val newState = if (newAttempts >= MAX_SYNC_ATTEMPTS) {
+            SyncState.ABANDONED
+        } else {
+            SyncState.FAILED
+        }
+        
+        expenseDao.updateSyncFailure(
+            id = expense.id,
+            state = newState,
+            attempts = newAttempts,
+            errorMessage = errorMessage.take(255),
+            attemptedAt = now
+        )
+        
+        return if (newState == SyncState.ABANDONED) {
+            Log.w(TAG, "Expense ${expense.id} abandoned after $newAttempts attempts")
+            Pair(0, 1)
+        } else {
+            Pair(1, 0)
+        }
+    }
 
     suspend fun fetchRemoteExpenses(userId: String): NetworkResult<List<Expense>> =
         withContext(Dispatchers.IO) {
@@ -132,4 +218,15 @@ class ExpenseRepository(
                 NetworkResult.Error(e.message ?: "Unknown error")
             }
         }
+    
+    suspend fun getAbandonedExpenses(): List<Expense> = withContext(Dispatchers.IO) {
+        val userId = sessionManager.userId ?: return@withContext emptyList()
+        expenseDao.getAbandonedExpenses(userId).map { it.toModel() }
+    }
+    
+    suspend fun retryAbandonedExpenses(expenseIds: List<String>) {
+        withContext(Dispatchers.IO) {
+            expenseDao.retryAbandonedExpenses(expenseIds)
+        }
+    }
 }

@@ -15,7 +15,13 @@ data class ExpenseEntity(
     val billImageUrl: String,
     val status: String,
     val timestamp: String,
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    
+    // Sync state tracking
+    val syncState: SyncState = SyncState.LOCAL_ONLY,
+    val syncAttempts: Int = 0,
+    val lastSyncAttempt: Long = 0L,
+    val syncError: String? = null
 ) {
     fun toModel(): Expense = Expense(
         id = id,
@@ -37,7 +43,8 @@ data class ExpenseEntity(
                 billImageUrl = model.billImageUrl,
                 status = model.status,
                 timestamp = model.timestamp,
-                isSynced = synced
+                isSynced = synced,
+                syncState = if (synced) SyncState.SYNCED else SyncState.LOCAL_ONLY
             )
     }
 }

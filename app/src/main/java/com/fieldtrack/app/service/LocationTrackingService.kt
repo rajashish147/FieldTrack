@@ -23,6 +23,7 @@ import com.fieldtrack.app.R
 import com.fieldtrack.app.data.model.Location
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.repository.LocationRepository
+import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.ui.dashboard.DashboardActivity
 import com.fieldtrack.app.util.Constants
 import com.fieldtrack.app.util.LocationUtils
@@ -336,7 +337,12 @@ class LocationTrackingService : Service() {
         // Final sync (best effort)
         serviceScope.launch {
             try {
-                locationRepository.syncUnsyncedLocations()
+                val result = locationRepository.syncUnsyncedLocations()
+                when (result) {
+                    is SyncResult.Success -> Log.d(TAG, "Final sync: ${result.synced} synced")
+                    is SyncResult.Partial -> Log.w(TAG, "Final sync partial: ${result.synced} synced, ${result.failed} failed")
+                    is SyncResult.Failed -> Log.e(TAG, "Final sync failed: ${result.reason}")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error during final sync", e)
             } finally {
@@ -453,9 +459,13 @@ class LocationTrackingService : Service() {
 
                             // Batch sync: only sync after N locations to reduce network calls
                             if (unsyncedBatchCount >= Constants.LOCATION_SYNC_BATCH_SIZE) {
-                                locationRepository.syncUnsyncedLocations()
+                                val syncResult = locationRepository.syncUnsyncedLocations()
                                 unsyncedBatchCount = 0
-                                Log.d(TAG, "Batch sync completed")
+                                when (syncResult) {
+                                    is SyncResult.Success -> Log.d(TAG, "Batch sync: ${syncResult.synced} synced")
+                                    is SyncResult.Partial -> Log.w(TAG, "Batch sync partial: ${syncResult.synced} synced, ${syncResult.failed} failed")
+                                    is SyncResult.Failed -> Log.e(TAG, "Batch sync failed: ${syncResult.reason}")
+                                }
                             }
 
                             // Update notification with last tracked time
@@ -792,6 +802,7 @@ class LocationTrackingService : Service() {
     /**
      * Creates notification for session invalid state.
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun createSessionInvalidNotification(reason: String): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
