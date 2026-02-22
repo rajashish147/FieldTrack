@@ -33,7 +33,8 @@ data class EmployeeLocation(
     val name: String,
     val latitude: Double,
     val longitude: Double,
-    val lastUpdated: String  // ISO 8601 or empty string if never synced
+    val lastUpdated: String,  // ISO 8601 or empty string if never synced
+    val activeSessionId: String? = null  // Current open session ID if checked in
 ) {
     val hasLocation: Boolean get() = lastUpdated.isNotEmpty()
 }
@@ -236,11 +237,20 @@ class AdminViewModel(
 
     /**
      * Fetch all employees, then fetch the latest location for each concurrently.
+     * Also fetches open sessions to populate activeSessionId.
      * Results are emitted as a list of [EmployeeLocation] for map markers.
      */
     fun loadEmployeeLocations() {
         _isLoading.value = true
         viewModelScope.launch {
+            // Fetch open sessions first
+            val openSessionsMap = when (val sessionsResult = adminRepository.getOpenSessions()) {
+                is NetworkResult.Success -> {
+                    sessionsResult.data.associate { it.userId to it.sessionId }
+                }
+                else -> emptyMap()
+            }
+
             when (val empResult = adminRepository.getAllEmployees()) {
                 is NetworkResult.Success -> {
                     val employees = empResult.data
@@ -257,7 +267,8 @@ class AdminViewModel(
                                             name = employee.name,
                                             latitude = loc?.latitude ?: 0.0,
                                             longitude = loc?.longitude ?: 0.0,
-                                            lastUpdated = loc?.timestamp ?: ""
+                                            lastUpdated = loc?.timestamp ?: "",
+                                            activeSessionId = openSessionsMap[employee.id]
                                         )
                                     }
                                     is NetworkResult.Error -> {
@@ -266,7 +277,8 @@ class AdminViewModel(
                                             name = employee.name,
                                             latitude = 0.0,
                                             longitude = 0.0,
-                                            lastUpdated = ""
+                                            lastUpdated = "",
+                                            activeSessionId = openSessionsMap[employee.id]
                                         )
                                     }
                                     is NetworkResult.Loading -> null

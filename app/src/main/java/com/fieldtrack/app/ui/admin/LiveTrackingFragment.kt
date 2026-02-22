@@ -14,7 +14,7 @@ import org.koin.androidx.viewmodel.ext.android.activityViewModel
 
 /**
  * LiveTrackingFragment — shows a list of employees with their last sync time.
- * Tapping an employee navigates to EmployeeMapFragment with their location.
+ * Tapping an employee shows a bottom sheet with action options.
  */
 class LiveTrackingFragment : Fragment() {
 
@@ -35,14 +35,7 @@ class LiveTrackingFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         adapter = TrackingAdapter { emp ->
-            val bundle = Bundle().apply {
-                putString("userId", emp.userId)
-                putString("name", emp.name)
-                putFloat("latitude", emp.latitude.toFloat())
-                putFloat("longitude", emp.longitude.toFloat())
-                putString("lastUpdated", emp.lastUpdated)
-            }
-            findNavController().navigate(R.id.action_liveTracking_to_employeeMap, bundle)
+            showEmployeeActionBottomSheet(emp)
         }
 
         binding.rvEmployees.layoutManager = LinearLayoutManager(requireContext())
@@ -54,6 +47,18 @@ class LiveTrackingFragment : Fragment() {
 
         observeViewModel()
         viewModel.loadEmployeeLocations()
+    }
+
+    private fun showEmployeeActionBottomSheet(employee: EmployeeLocation) {
+        val bottomSheet = EmployeeActionBottomSheet.newInstance(
+            userId = employee.userId,
+            name = employee.name,
+            latitude = employee.latitude.toFloat(),
+            longitude = employee.longitude.toFloat(),
+            lastUpdated = employee.lastUpdated,
+            activeSessionId = employee.activeSessionId
+        )
+        bottomSheet.show(childFragmentManager, "EmployeeActionBottomSheet")
     }
 
     private fun observeViewModel() {
