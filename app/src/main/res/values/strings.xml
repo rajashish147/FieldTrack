@@ -49,4 +49,16 @@
     <string name="inactive">Inactive</string>
     <string name="pending">Pending</string>
 
+    <!-- v1.4 - Admin Session History -->
+    <string name="session_still_active">Still Active</string>
+    <string name="session_history">Session History</string>
+    <string name="no_session_history">No sessions found</string>
+    <string name="no_session_history_hint">This employee has not checked in yet</string>
+    <string name="view_session_history">View Session History</string>
+
+    <plurals name="session_count">
+        <item quantity="one">1 session</item>
+        <item quantity="other">%d sessions</item>
+    </plurals>
+
 </resources>

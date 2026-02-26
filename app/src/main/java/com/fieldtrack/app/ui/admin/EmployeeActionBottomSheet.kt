@@ -1,3 +1,4 @@
+// v1.4 - Admin Session History: added setupViewSessionHistory()
 package com.fieldtrack.app.ui.admin
 
 import android.os.Bundle
@@ -65,6 +66,7 @@ class EmployeeActionBottomSheet : BottomSheetDialogFragment() {
 
         setupViewLiveLocation()
         setupViewRoute()
+        setupViewSessionHistory()
     }
 
     private fun setupViewLiveLocation() {
@@ -102,6 +104,31 @@ class EmployeeActionBottomSheet : BottomSheetDialogFragment() {
                     bundle
                 )
             }
+        }
+    }
+
+    // v1.4 - View Session History
+    /**
+     * Wires the "View Session History" button.
+     *
+     * Dismisses the sheet and navigates to [AdminSessionHistoryFragment] via the
+     * action declared on [liveTrackingFragment] in nav_admin.xml.
+     *
+     * Passes:
+     *   "userId"       — required by [AdminSessionHistoryFragmentArgs]
+     *   "employeeName" — optional; pre-fills the screen header
+     */
+    private fun setupViewSessionHistory() {
+        binding.btnViewSessionHistory.setOnClickListener {
+            val bundle = androidx.core.os.bundleOf(
+                "userId" to userId,
+                "employeeName" to name
+            )
+            dismiss()
+            parentFragment?.findNavController()?.navigate(
+                R.id.action_liveTracking_to_adminSessionHistory,
+                bundle
+            )
         }
     }
 

@@ -4,6 +4,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.fieldtrack.app.data.model.AdminSession
+import com.fieldtrack.app.data.model.OpenSession
+import com.fieldtrack.app.ui.UiState
 import com.fieldtrack.app.data.model.Expense
 import com.fieldtrack.app.data.model.User
 import com.fieldtrack.app.data.remote.NetworkResult
@@ -52,7 +55,7 @@ class AdminViewModel(
 ) : ViewModel() {
 
     private val _allEmployeesRaw = MutableLiveData<List<User>>()
-    
+
     private val _allEmployees = MutableLiveData<List<User>>()
     val allEmployees: LiveData<List<User>> = _allEmployees
 
@@ -62,7 +65,7 @@ class AdminViewModel(
     private var currentEmployeeFilter = EmployeeFilter.ALL
 
     private val _pendingEmployeesRaw = MutableLiveData<List<User>>()
-    
+
     private val _pendingEmployees = MutableLiveData<List<User>>()
     val pendingEmployees: LiveData<List<User>> = _pendingEmployees
 
@@ -76,7 +79,7 @@ class AdminViewModel(
     val employeeLocations: LiveData<List<EmployeeLocation>> = _employeeLocations
 
     private val _expensesRaw = MutableLiveData<List<Expense>>()
-    
+
     private val _expenses = MutableLiveData<List<Expense>>()
     val expenses: LiveData<List<Expense>> = _expenses
 
@@ -103,8 +106,8 @@ class AdminViewModel(
     val pendingExpenseCount: LiveData<Int> = _pendingExpenseCount
 
     // P2.1 - Admin Open Sessions
-    private val _openSessions = MutableLiveData<List<com.fieldtrack.app.data.model.OpenSession>>()
-    val openSessions: LiveData<List<com.fieldtrack.app.data.model.OpenSession>> = _openSessions
+    private val _openSessions = MutableLiveData<UiState<List<OpenSession>>>()
+    val openSessions: LiveData<UiState<List<OpenSession>>> = _openSessions
 
     // P2.2 - Admin Force Check-Out
     private val _forceLoading = MutableLiveData(false)
@@ -112,6 +115,10 @@ class AdminViewModel(
 
     private val _forceError = MutableLiveData<String?>()
     val forceError: LiveData<String?> = _forceError
+
+    // v1.4 - Admin Session History
+    private val _sessionHistory = MutableLiveData<UiState<List<AdminSession>>>()
+    val sessionHistory: LiveData<UiState<List<AdminSession>>> = _sessionHistory
 
     fun loadAllEmployees() {
         _isLoading.value = true
@@ -156,14 +163,14 @@ class AdminViewModel(
     private fun applySearchFilter() {
         val query = _searchQuery.value ?: ""
         val rawList = _allEmployeesRaw.value ?: emptyList()
-        
+
         // Apply filter first
         val filteredByStatus = when (currentEmployeeFilter) {
             EmployeeFilter.ALL -> rawList
             EmployeeFilter.ACTIVE -> rawList.filter { it.isCheckedIn }
             EmployeeFilter.INACTIVE -> rawList.filter { !it.isCheckedIn }
         }
-        
+
         // Then apply search
         _allEmployees.value = if (query.isBlank()) {
             filteredByStatus
@@ -175,7 +182,7 @@ class AdminViewModel(
     private fun applyPendingSearchFilter() {
         val query = _pendingSearchQuery.value ?: ""
         val rawList = _pendingEmployeesRaw.value ?: emptyList()
-        
+
         _pendingEmployees.value = if (query.isBlank()) {
             rawList
         } else {
@@ -188,7 +195,7 @@ class AdminViewModel(
         val statusFilter = _expenseStatusFilter.value ?: "all"
         val rawList = _expensesRaw.value ?: emptyList()
         val names = _employeeNames.value ?: emptyMap()
-        
+
         _expenses.value = rawList
             .filter { expense ->
                 // Status filter
@@ -347,10 +354,10 @@ class AdminViewModel(
                 is NetworkResult.Success -> {
                     _expensesRaw.value = result.data
                     applyExpenseSearchFilter()
-                    
+
                     // Update pending expense count
-                    val pendingCount = result.data.count { 
-                        it.status == com.fieldtrack.app.util.Constants.EXPENSE_STATUS_PENDING 
+                    val pendingCount = result.data.count {
+                        it.status == com.fieldtrack.app.util.Constants.EXPENSE_STATUS_PENDING
                     }
                     _pendingExpenseCount.value = pendingCount
                 }
@@ -399,28 +406,23 @@ class AdminViewModel(
      * Updates openSessions LiveData with list of active sessions.
      */
     fun loadOpenSessions() {
-        _isLoading.value = true
+        _openSessions.value = UiState.Loading
         viewModelScope.launch {
             when (val result = adminRepository.getOpenSessions()) {
-                is NetworkResult.Success -> {
-                    _openSessions.value = result.data
-                }
-                is NetworkResult.Error -> {
-                    _toastMessage.value = result.message
-                }
-                is NetworkResult.Loading -> { /* no-op */ }
+                is NetworkResult.Success -> _openSessions.value = UiState.Success(result.data)
+                is NetworkResult.Error   -> _openSessions.value = UiState.Error(result.message)
+                is NetworkResult.Loading -> Unit
             }
-            _isLoading.value = false
         }
     }
 
     // P2.2 - Admin Force Check-Out
     /**
      * Force check-out a user and close their open session (admin-only).
-     * 
+     *
      * @param userId Target user's UUID
      * @param reason Optional reason for force check-out
-     * 
+     *
      * On success: Reloads open sessions list
      * On error: Exposes error message via forceError LiveData
      */
@@ -444,5 +446,35 @@ class AdminViewModel(
 
     fun clearForceError() {
         _forceError.value = null
+    }
+
+    // v1.4 - Admin Session History ─────────────────────────────────────────
+
+    /**
+     * Load full attendance session history (open + closed) for a specific employee.
+     *
+     * Calls admin_list_sessions_for_user() RPC via AdminRepository.
+     * An empty list is a valid success — the employee simply has no sessions yet.
+     *
+     * State transitions:
+     *   UiState.Loading → request in flight
+     *   UiState.Success → list emitted (may be empty)
+     *   UiState.Error   → user-facing message from the repository
+     *
+     * @param userId Target employee's UUID (must be non-empty, validated by RPC)
+     */
+    fun loadSessionHistory(userId: String) {
+        _sessionHistory.value = UiState.Loading
+        viewModelScope.launch {
+            when (val result = adminRepository.getSessionsForUser(userId)) {
+                is NetworkResult.Success -> {
+                    _sessionHistory.value = UiState.Success(result.data)
+                }
+                is NetworkResult.Error -> {
+                    _sessionHistory.value = UiState.Error(result.message)
+                }
+                is NetworkResult.Loading -> Unit
+            }
+        }
     }
 }

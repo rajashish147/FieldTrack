@@ -26,13 +26,13 @@ class AdminSessionRouteFragment : Fragment(), OnMapReadyCallback {
     private val binding get() = _binding!!
 
     private val viewModel: AdminSessionRouteViewModel by viewModel()
-    
+
     private var googleMap: GoogleMap? = null
     private var sessionId: String? = null
 
     companion object {
         private const val ARG_SESSION_ID = "session_id"
-        
+
         fun newInstance(sessionId: String): AdminSessionRouteFragment {
             return AdminSessionRouteFragment().apply {
                 arguments = Bundle().apply {
@@ -58,18 +58,18 @@ class AdminSessionRouteFragment : Fragment(), OnMapReadyCallback {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         val mapFragment = childFragmentManager.findFragmentById(R.id.map) as? SupportMapFragment
         mapFragment?.getMapAsync(this)
-        
+
         observeViewModel()
-        
+
         sessionId?.let { viewModel.loadSessionRoute(it) }
     }
 
     override fun onMapReady(map: GoogleMap) {
         googleMap = map
-        
+
         viewModel.routePoints.value?.let { points ->
             if (points.isNotEmpty()) {
                 renderRoute(points)
@@ -85,7 +85,7 @@ class AdminSessionRouteFragment : Fragment(), OnMapReadyCallback {
         }
 
         viewModel.totalDistanceKm.observe(viewLifecycleOwner) { distance ->
-            binding.tvDistance.text = String.format("%.2f km", distance)
+            binding.tvDistance.text = "Total Distance: ${"%.2f".format(distance)} km"
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
@@ -102,26 +102,26 @@ class AdminSessionRouteFragment : Fragment(), OnMapReadyCallback {
 
     private fun renderRoute(points: List<com.fieldtrack.app.data.model.Location>) {
         val map = googleMap ?: return
-        
+
         map.clear()
-        
+
         if (points.size < 2) {
             binding.tvNoData.visibility = View.VISIBLE
             binding.tvNoData.text = "Insufficient route data"
             return
         }
-        
+
         binding.tvNoData.visibility = View.GONE
-        
+
         val latLngList = points.map { LatLng(it.latitude, it.longitude) }
-        
+
         val polylineOptions = PolylineOptions()
             .addAll(latLngList)
             .width(8f)
             .color(ContextCompat.getColor(requireContext(), R.color.route_polyline))
-        
+
         map.addPolyline(polylineOptions)
-        
+
         val startPoint = latLngList.first()
         map.addMarker(
             MarkerOptions()
@@ -129,7 +129,7 @@ class AdminSessionRouteFragment : Fragment(), OnMapReadyCallback {
                 .title("Start")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
         )
-        
+
         val endPoint = latLngList.last()
         map.addMarker(
             MarkerOptions()
@@ -137,11 +137,11 @@ class AdminSessionRouteFragment : Fragment(), OnMapReadyCallback {
                 .title("End")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
         )
-        
+
         val boundsBuilder = LatLngBounds.Builder()
         latLngList.forEach { boundsBuilder.include(it) }
         val bounds = boundsBuilder.build()
-        
+
         val padding = 100
         map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding))
     }

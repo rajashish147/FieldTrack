@@ -1,4 +1,5 @@
 // P2.1 - Admin Open Sessions
+// v1.4 - Migrated openSessions to UiState
 package com.fieldtrack.app.ui.admin
 
 import android.os.Bundle
@@ -10,6 +11,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.fieldtrack.app.databinding.FragmentOpenSessionsBinding
+import com.fieldtrack.app.ui.UiState
 import com.fieldtrack.app.util.showToast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -90,12 +92,12 @@ class OpenSessionsFragment : Fragment() {
     // Phase 2 Beta - Navigate to Session Route
     /**
      * Navigate to SessionRouteFragment to visualize the session's tracked route.
-     * 
+     *
      * Guards:
      * - If sessionId is null → show non-blocking Snackbar and do NOT navigate
-     * 
+     *
      * Admin fix: Pass userId (employee's ID) to enable admin viewing employee routes
-     * 
+     *
      * @param session The open session to view route for
      */
     private fun navigateToSessionRoute(session: com.fieldtrack.app.data.model.OpenSession) {
@@ -115,7 +117,7 @@ class OpenSessionsFragment : Fragment() {
             putString("sessionId", session.sessionId)
             putString("userId", session.userId)  // Admin fix: Pass employee's userId
         }
-        
+
         findNavController().navigate(
             com.fieldtrack.app.R.id.action_openSessions_to_sessionRoute,
             bundle
@@ -123,20 +125,31 @@ class OpenSessionsFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        viewModel.openSessions.observe(viewLifecycleOwner) { sessions ->
-            adapter.submitList(sessions)
-
-            val isEmpty = sessions.isEmpty()
-            binding.tvNoSessions.visibility = if (isEmpty) View.VISIBLE else View.GONE
-            binding.rvOpenSessions.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        // Single UiState observer replaces the former openSessions + isLoading pair.
+        viewModel.openSessions.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                is UiState.Loading -> {
+                    binding.progressBar.visibility = View.VISIBLE
+                    binding.tvNoSessions.visibility = View.GONE
+                    binding.rvOpenSessions.visibility = View.GONE
+                }
+                is UiState.Success -> {
+                    binding.progressBar.visibility = View.GONE
+                    binding.swipeRefresh.isRefreshing = false
+                    adapter.submitList(state.data)
+                    val isEmpty = state.data.isEmpty()
+                    binding.tvNoSessions.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    binding.rvOpenSessions.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                }
+                is UiState.Error -> {
+                    binding.progressBar.visibility = View.GONE
+                    binding.swipeRefresh.isRefreshing = false
+                    Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG).show()
+                }
+            }
         }
 
-        viewModel.isLoading.observe(viewLifecycleOwner) { loading ->
-            binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
-            binding.swipeRefresh.isRefreshing = false
-        }
-
-        // P2.2 - Observe force check-out loading state
+        // P2.2 - Observe force check-out loading state (separate from list loading)
         viewModel.forceLoading.observe(viewLifecycleOwner) { loading ->
             // Disable swipe refresh while force check-out is in progress
             binding.swipeRefresh.isEnabled = !loading
@@ -150,6 +163,7 @@ class OpenSessionsFragment : Fragment() {
             }
         }
 
+        // Success toast from forceCheckOut ("Session closed")
         viewModel.toastMessage.observe(viewLifecycleOwner) { msg ->
             msg?.let {
                 Snackbar.make(binding.root, it, Snackbar.LENGTH_SHORT).show()

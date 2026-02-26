@@ -232,12 +232,28 @@
     </LinearLayout>
 
     <!-- Actions -->
+
+    <!-- v1.4 - View Session History button (full-width, above close row) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_view_session_history"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="View Session History"
+        android:textAllCaps="false"
+        app:icon="@android:drawable/ic_menu_recent_history"
+        app:iconSize="18dp"
+        app:iconGravity="textStart"
+        app:cornerRadius="8dp" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="0dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_view_map"
