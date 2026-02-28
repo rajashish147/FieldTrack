@@ -7,6 +7,7 @@
 *.apk
 *.aab
 *.hprof
+/supabase-ai
 
 # IDE
 /.idea/
