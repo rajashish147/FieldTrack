@@ -7,6 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.fieldtrack.app.data.repository.LoginResult
 import com.fieldtrack.app.data.repository.SignUpResult
 import com.fieldtrack.app.databinding.ActivityLoginBinding
+import com.fieldtrack.app.data.model.UserRole
 import com.fieldtrack.app.ui.admin.AdminHomeActivity
 import com.fieldtrack.app.ui.employee.EmployeeHomeActivity
 import com.fieldtrack.app.util.ConfigValidator
@@ -198,10 +199,9 @@ class LoginActivity : AppCompatActivity() {
      * Routes to appropriate home screen based on user role.
      */
     private fun navigateToHome() {
-        val intent = if (viewModel.isAdmin()) {
-            Intent(this, AdminHomeActivity::class.java)
-        } else {
-            Intent(this, EmployeeHomeActivity::class.java)
+        val intent = when (viewModel.getUserRole()) {
+            UserRole.ADMIN -> Intent(this, AdminHomeActivity::class.java)
+            UserRole.EMPLOYEE -> Intent(this, EmployeeHomeActivity::class.java)
         }
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

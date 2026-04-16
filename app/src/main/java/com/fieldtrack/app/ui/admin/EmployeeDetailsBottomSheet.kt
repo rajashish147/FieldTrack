@@ -56,7 +56,7 @@ class EmployeeDetailsBottomSheet : BottomSheetDialogFragment() {
     private fun bindEmployeeData(user: com.fieldtrack.app.data.model.User) {
         // Profile Header
         binding.tvEmployeeName.text = user.name.ifBlank { "Unnamed Employee" }
-        binding.tvRole.text = user.role.replaceFirstChar { it.uppercase() }
+        binding.tvRole.text = user.role.name.lowercase().replaceFirstChar { it.uppercase() }
 
         // Active/Inactive Status Badge
         binding.tvStatus.text = if (user.isActive) "Active" else "Inactive"

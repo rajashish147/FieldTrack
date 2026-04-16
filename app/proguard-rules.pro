@@ -50,3 +50,9 @@
 
 # Prevent R8 from stripping data classes used in serialization
 -keep class com.fieldtrack.app.data.local.entity.** { *; }
+
+# Strip debug and info logs from release builds
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** i(...);
+}

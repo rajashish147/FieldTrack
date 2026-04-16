@@ -77,7 +77,7 @@ class AttendanceSessionRepository(
             apiCall = { attendanceApi.checkIn() },
             operationName = "checkIn",
             onSuccess = { session ->
-                Log.i(TAG, "checkIn: success, sessionId=${session.id}")
+                Log.i(TAG, "checkIn: success")
                 CheckInResult.Success(session)
             },
             errorMapping = mapOf(
@@ -102,7 +102,7 @@ class AttendanceSessionRepository(
             apiCall = { attendanceApi.checkOut() },
             operationName = "checkOut",
             onSuccess = { session ->
-                Log.i(TAG, "checkOut: success, sessionId=${session.id}")
+                Log.i(TAG, "checkOut: success")
                 CheckOutResult.Success(session)
             },
             errorMapping = mapOf(
@@ -165,7 +165,7 @@ class AttendanceSessionRepository(
                 apiCall = { attendanceApi.checkOut() },
                 operationName = "coordinatedCheckOut",
                 onSuccess = { session ->
-                    Log.i(TAG, "coordinatedCheckOut: backend success, sessionId=${session.id}")
+                    Log.i(TAG, "coordinatedCheckOut: backend success")
                     CheckOutResult.Success(session)
                 },
                 errorMapping = mapOf(
@@ -233,7 +233,7 @@ class AttendanceSessionRepository(
             if (isCheckedIn && openSession != null) {
                 val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
                 sessionManager.setCheckedIn(openSession.id, checkInTimeMillis)
-                Log.i(TAG, "syncStateFromServer: restored session state, sessionId=${openSession.id}")
+                Log.i(TAG, "syncStateFromServer: restored session state")
             } else {
                 sessionManager.setCheckedOut(System.currentTimeMillis())
                 Log.i(TAG, "syncStateFromServer: cleared session state")
@@ -267,7 +267,7 @@ class AttendanceSessionRepository(
                     if (serverState && openSession != null) {
                         val checkInTimeMillis = parseIso8601Timestamp(openSession.checkInAt)
                         sessionManager.setCheckedIn(openSession.id, checkInTimeMillis)
-                        Log.i(TAG, "detectAndRepairDrift: restored session state, sessionId=${openSession.id}")
+                        Log.i(TAG, "detectAndRepairDrift: restored session state")
                     } else {
                         sessionManager.setCheckedOut(System.currentTimeMillis())
                         Log.i(TAG, "detectAndRepairDrift: cleared session state")

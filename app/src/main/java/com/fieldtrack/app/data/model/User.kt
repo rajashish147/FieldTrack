@@ -8,37 +8,14 @@ data class User(
     val email: String? = null,
     val phone: String? = null,
     val profileImageUrl: String? = null,
-    val role: String,
+    val role: UserRole,
     val isCheckedIn: Boolean,
     val isActive: Boolean = false,
     val lastSyncedAt: String? = null
 ) {
     fun getFormattedLastSync(): String {
         if (lastSyncedAt.isNullOrBlank()) return "Never synced"
-        
-        return try {
-            val syncTime = java.time.Instant.parse(lastSyncedAt)
-            val syncDateTime = java.time.LocalDateTime.ofInstant(syncTime, java.time.ZoneId.systemDefault())
-            val now = java.time.LocalDateTime.now()
-            
-            val syncDate = syncDateTime.toLocalDate()
-            val today = now.toLocalDate()
-            val yesterday = today.minusDays(1)
-            
-            val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("h:mm a")
-            val timeStr = syncDateTime.format(timeFormatter)
-            
-            when (syncDate) {
-                today -> "Today, $timeStr"
-                yesterday -> "Yesterday, $timeStr"
-                else -> {
-                    val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a")
-                    syncDateTime.format(dateFormatter)
-                }
-            }
-        } catch (e: Exception) {
-            "Unknown"
-        }
+        return com.fieldtrack.app.util.TimeUtils.formatForDisplay(lastSyncedAt)
     }
     
     /**

@@ -89,9 +89,7 @@ class AdminViewModel(
     private val _expenseStatusFilter = MutableLiveData("all")
     val expenseStatusFilter: LiveData<String> = _expenseStatusFilter
 
-    /** Map of userId → employee name for display in expense cards */
-    private val _employeeNames = MutableLiveData<Map<String, String>>(emptyMap())
-    val employeeNames: LiveData<Map<String, String>> = _employeeNames
+
 
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
@@ -194,7 +192,6 @@ class AdminViewModel(
         val query = _expenseSearchQuery.value ?: ""
         val statusFilter = _expenseStatusFilter.value ?: "all"
         val rawList = _expensesRaw.value ?: emptyList()
-        val names = _employeeNames.value ?: emptyMap()
 
         _expenses.value = rawList
             .filter { expense ->
@@ -209,12 +206,7 @@ class AdminViewModel(
             }
             .filter { expense ->
                 // Search filter
-                if (query.isBlank()) {
-                    true
-                } else {
-                    val employeeName = names[expense.userId] ?: expense.userId
-                    expense.matchesSearch(query, employeeName)
-                }
+                expense.matchesSearch(query)
             }
     }
 
@@ -340,16 +332,6 @@ class AdminViewModel(
     fun loadAllExpenses() {
         _isLoading.value = true
         viewModelScope.launch {
-            // Load employee names if not yet cached
-            if (_employeeNames.value.isNullOrEmpty()) {
-                when (val empResult = adminRepository.getAllEmployees()) {
-                    is NetworkResult.Success -> {
-                        _employeeNames.value = empResult.data.associate { it.id to it.name }
-                    }
-                    else -> { /* names will fall back to userId */ }
-                }
-            }
-
             when (val result = expenseRepository.fetchAllExpenses()) {
                 is NetworkResult.Success -> {
                     _expensesRaw.value = result.data

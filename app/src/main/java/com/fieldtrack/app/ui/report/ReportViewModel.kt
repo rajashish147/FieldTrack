@@ -16,7 +16,6 @@ import com.fieldtrack.app.util.currentDateString
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.util.UUID
 
@@ -97,9 +96,8 @@ class ReportViewModel(
         return try {
             val fileName = "${userId}/${currentDateString()}_${System.currentTimeMillis()}.jpg"
             val requestBody = compressedFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-            val part = MultipartBody.Part.createFormData("file", compressedFile.name, requestBody)
 
-            val response = storageApi.uploadFile("reports", fileName, part)
+            val response = storageApi.uploadFile("reports", fileName, "image/jpeg", requestBody)
             if (response.isSuccessful) {
                 "reports/$fileName"
             } else {

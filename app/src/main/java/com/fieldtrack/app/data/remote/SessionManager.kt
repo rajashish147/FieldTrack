@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.fieldtrack.app.data.model.UserRole
 import com.fieldtrack.app.util.Constants
 
 class SessionManager(context: Context) {
@@ -28,7 +29,7 @@ class SessionManager(context: Context) {
             .putString(Constants.PREF_REFRESH_TOKEN, refreshToken)
             .putString(Constants.PREF_USER_ID, userId)
             .putLong(Constants.PREF_EXPIRES_AT, expiresAt)
-            .apply()
+            .commit()
     }
 
     var accessToken: String?
@@ -49,9 +50,16 @@ class SessionManager(context: Context) {
     val isTokenExpired: Boolean
         get() = System.currentTimeMillis() >= tokenExpiresAt
 
-    var userRole: String?
-        get() = prefs.getString(Constants.PREF_USER_ROLE, null)
-        set(value) = prefs.edit().putString(Constants.PREF_USER_ROLE, value).apply()
+    var userRole: UserRole
+        get() {
+            val stored = prefs.getString(Constants.PREF_USER_ROLE, null)
+            if (stored.isNullOrBlank()) {
+                clearSession()
+                throw IllegalStateException("Session corrupted: missing role")
+            }
+            return UserRole.valueOf(stored)
+        }
+        set(value) = prefs.edit().putString(Constants.PREF_USER_ROLE, value.name).apply()
 
     var userName: String?
         get() = prefs.getString(Constants.PREF_USER_NAME, null)
@@ -91,7 +99,7 @@ class SessionManager(context: Context) {
         get() = accessToken != null && userId != null
 
     val isAdmin: Boolean
-        get() = userRole == Constants.ROLE_ADMIN
+        get() = userRole == UserRole.ADMIN
 
     /**
      * Checkout lock prevents session clearing during final sync.

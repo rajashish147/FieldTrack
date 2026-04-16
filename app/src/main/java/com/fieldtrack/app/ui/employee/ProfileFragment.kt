@@ -77,7 +77,7 @@ class ProfileFragment : Fragment() {
                 binding.tvUserName.text = it.name
                 binding.tvUserEmail.text = it.email ?: "No email"
                 binding.tvUserPhone.text = it.phone ?: "No phone"
-                binding.tvUserRole.text = it.role.replaceFirstChar { char -> char.uppercase() }
+                binding.tvUserRole.text = it.role.name.lowercase().replaceFirstChar { char -> char.uppercase() }
                 
                 // Load profile image
                 if (!it.profileImageUrl.isNullOrBlank()) {

@@ -71,8 +71,15 @@ class AdminExpenseFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        // Adapter is recreated when employee names arrive
+        val authToken = viewModel.getAuthToken() ?: ""
+        expenseAdapter = AdminExpenseAdapter(
+            authToken = authToken,
+            onApprove = { expense -> viewModel.approveExpense(expense.id) },
+            onReject = { expense -> viewModel.rejectExpense(expense.id) },
+            onImageClick = { imageUrl -> showBillImage(imageUrl) }
+        )
         binding.rvExpenses.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvExpenses.adapter = expenseAdapter
     }
 
     private fun setupStatusFilter() {
@@ -110,21 +117,6 @@ class AdminExpenseFragment : Fragment() {
     }
 
     private fun observeViewModel() {
-        // Rebuild adapter when employee names are available
-        viewModel.employeeNames.observe(viewLifecycleOwner) { names ->
-            val authToken = viewModel.getAuthToken() ?: ""
-            expenseAdapter = AdminExpenseAdapter(
-                employeeNames = names,
-                authToken = authToken,
-                onApprove = { expense -> viewModel.approveExpense(expense.id) },
-                onReject = { expense -> viewModel.rejectExpense(expense.id) },
-                onImageClick = { imageUrl -> showBillImage(imageUrl) }
-            )
-            binding.rvExpenses.adapter = expenseAdapter
-            // Re-submit current list if already loaded
-            viewModel.expenses.value?.let { expenseAdapter?.submitList(it) }
-        }
-
         viewModel.expenses.observe(viewLifecycleOwner) { expenses ->
             expenseAdapter?.submitList(expenses)
             val isEmpty = expenses.isEmpty()

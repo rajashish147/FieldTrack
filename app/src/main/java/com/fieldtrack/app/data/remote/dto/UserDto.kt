@@ -1,6 +1,7 @@
 package com.fieldtrack.app.data.remote.dto
 
 import com.fieldtrack.app.data.model.User
+import com.fieldtrack.app.data.model.UserRole
 import com.google.gson.annotations.SerializedName
 
 data class UserDto(
@@ -17,24 +18,43 @@ data class UserDto(
     @SerializedName("role")
     val role: String,
     @SerializedName("is_checked_in")
-    val isCheckedIn: Boolean,
+    val isCheckedIn: Boolean = false,
     @SerializedName("is_active")
     val isActive: Boolean = false,
     @SerializedName("last_synced_at")
     val lastSyncedAt: String? = null
 ) {
+    /** Type-safe parsed role — fails fast on unknown values */
+    val userRole: UserRole
+        get() = UserRole.fromString(role)
+
+    /** Convenience check for UI gating */
+    fun isAdmin(): Boolean = role == "ADMIN"
+
     fun toModel(): User = User(
         id = id,
         name = name,
         email = email,
         phone = phone,
         profileImageUrl = profileImageUrl,
-        role = role,
+        role = UserRole.fromString(role),
         isCheckedIn = isCheckedIn,
         isActive = isActive,
         lastSyncedAt = lastSyncedAt
     )
 }
+
+/** DTO for inserting a new user profile — excludes columns not in schema */
+data class InsertUserDto(
+    @SerializedName("id")
+    val id: String,
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("role")
+    val role: String,
+    @SerializedName("is_active")
+    val isActive: Boolean = false
+)
 
 data class UpdateCheckInDto(
     @SerializedName("is_checked_in")

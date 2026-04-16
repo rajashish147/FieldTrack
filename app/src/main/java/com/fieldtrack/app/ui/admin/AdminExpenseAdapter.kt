@@ -16,7 +16,6 @@ import com.fieldtrack.app.util.formatCurrency
 import com.fieldtrack.app.util.toReadableDateTime
 
 class AdminExpenseAdapter(
-    private val employeeNames: Map<String, String>,
     private val authToken: String,
     private val onApprove: (Expense) -> Unit,
     private val onReject: (Expense) -> Unit,
@@ -42,7 +41,7 @@ class AdminExpenseAdapter(
             binding.tvAmount.text = expense.amount.formatCurrency()
             binding.tvCategory.text = expense.category
             binding.tvTimestamp.text = expense.timestamp.toReadableDateTime()
-            binding.tvEmployeeName.text = employeeNames[expense.userId] ?: expense.userId
+            binding.tvEmployeeName.text = expense.employeeName
             binding.tvStatus.text = expense.status.replaceFirstChar { it.uppercase() }
 
             val statusColor = when (expense.status) {

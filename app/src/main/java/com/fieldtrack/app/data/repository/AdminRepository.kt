@@ -6,9 +6,9 @@ import com.fieldtrack.app.data.model.OpenSession
 import com.fieldtrack.app.data.model.User
 import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.remote.api.UserApi
-import com.fieldtrack.app.data.remote.dto.UpdateUserStatusDto
 import android.util.Log
 import com.fieldtrack.app.BuildConfig
+import com.fieldtrack.app.data.model.UserRole
 import com.fieldtrack.app.util.Constants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,7 +29,7 @@ class AdminRepository(
     /** Get all users with role = employee */
     suspend fun getAllEmployees(): NetworkResult<List<User>> = withContext(Dispatchers.IO) {
         try {
-            val response = userApi.getUsersByRole(role = "eq.${Constants.ROLE_EMPLOYEE}")
+            val response = userApi.getUsersByRole(role = "eq.${UserRole.EMPLOYEE.name}")
             if (response.isSuccessful && response.body() != null) {
                 NetworkResult.Success(response.body()!!.map { it.toModel() })
             } else {
@@ -44,7 +44,7 @@ class AdminRepository(
     suspend fun getPendingEmployees(): NetworkResult<List<User>> = withContext(Dispatchers.IO) {
         try {
             val response = userApi.getUsersByActiveStatus(
-                role = "eq.${Constants.ROLE_EMPLOYEE}",
+                role = "eq.${UserRole.EMPLOYEE.name}",
                 isActive = "eq.false"
             )
             if (response.isSuccessful && response.body() != null) {
@@ -62,7 +62,7 @@ class AdminRepository(
         try {
             val response = userApi.updateUserStatus(
                 id = "eq.$userId",
-                body = UpdateUserStatusDto(isActive = true)
+                body = mapOf("is_active" to true)
             )
             if (response.isSuccessful) {
                 NetworkResult.Success(Unit)
@@ -79,7 +79,7 @@ class AdminRepository(
         try {
             val response = userApi.updateUserStatus(
                 id = "eq.$userId",
-                body = UpdateUserStatusDto(isActive = false)
+                body = mapOf("is_active" to false)
             )
             if (response.isSuccessful) {
                 NetworkResult.Success(Unit)

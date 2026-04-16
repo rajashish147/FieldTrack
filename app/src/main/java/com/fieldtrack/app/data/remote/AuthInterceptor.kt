@@ -58,7 +58,7 @@ class AuthInterceptor(private val sessionManager: SessionManager) : Interceptor 
                 && !url.contains("/rest/v1/rpc/")
                 && originalRequest.method != "GET"
 
-        if (isTableWrite) {
+        if (isTableWrite && originalRequest.header("Prefer") == null) {
             requestBuilder.header("Prefer", "return=representation")
         }
         // ─────────────────────────────────────────────────────────────────────

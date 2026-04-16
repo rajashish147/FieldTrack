@@ -33,8 +33,23 @@ class FieldTrackApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // Set default timezone for entire JVM — ensures all time rendering is IST
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Kolkata"))
+
+        // Log uncaught exceptions for crash diagnostics
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Log.e("FATAL", "Crash in ${thread.name}", throwable)
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
         initKoin()
         createNotificationChannels()
+
+        // Detect env misconfiguration early (debug only)
+        if (BuildConfig.DEBUG) {
+            Log.d("FieldTrack", "Supabase initialized: ${BuildConfig.SUPABASE_URL}")
+        }
         
         // CRITICAL: Sync unsynced locations on app start
         // Handles case where app was killed during checkout sync

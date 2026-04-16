@@ -59,8 +59,4 @@ object Constants {
     const val EXPENSE_STATUS_PENDING = "pending"
     const val EXPENSE_STATUS_APPROVED = "approved"
     const val EXPENSE_STATUS_REJECTED = "rejected"
-
-    // User Roles
-    const val ROLE_EMPLOYEE = "employee"
-    const val ROLE_ADMIN = "admin"
 }

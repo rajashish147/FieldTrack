@@ -9,6 +9,7 @@ import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.LoginResult
 import com.fieldtrack.app.databinding.ActivityPendingApprovalBinding
+import com.fieldtrack.app.data.model.UserRole
 import com.fieldtrack.app.ui.employee.EmployeeHomeActivity
 import com.fieldtrack.app.ui.admin.AdminHomeActivity
 import com.fieldtrack.app.util.Constants
@@ -55,10 +56,9 @@ class PendingApprovalActivity : AppCompatActivity() {
             when (val result = authRepository.validateSession()) {
                 is LoginResult.Success -> {
                     // Admin approved — route based on role
-                    if (sessionManager.isAdmin) {
-                        navigateToAdmin()
-                    } else {
-                        navigateToEmployee()
+                    when (sessionManager.userRole) {
+                        UserRole.ADMIN -> navigateToAdmin()
+                        UserRole.EMPLOYEE -> navigateToEmployee()
                     }
                 }
                 is LoginResult.PendingApproval -> {

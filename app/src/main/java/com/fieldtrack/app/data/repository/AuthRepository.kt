@@ -9,7 +9,9 @@ import com.fieldtrack.app.data.remote.dto.LoginRequest
 import com.fieldtrack.app.data.remote.dto.RefreshTokenRequest
 import com.fieldtrack.app.data.remote.dto.SignUpRequest
 import com.fieldtrack.app.data.remote.dto.SupabaseError
+import com.fieldtrack.app.data.remote.dto.InsertUserDto
 import com.fieldtrack.app.data.remote.dto.UserDto
+import com.fieldtrack.app.data.model.UserRole
 import com.fieldtrack.app.util.Constants
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -44,9 +46,8 @@ class AuthRepository(
 
                     if (!authResponse.hasSession || authResponse.user == null) {
                         return@withContext LoginResult.Error("Login failed: no session returned")
-                    }
-
-                    // Store session tokens
+                }
+                // Store session tokens
                     sessionManager.saveSession(
                         accessToken = authResponse.accessToken!!,
                         refreshToken = authResponse.refreshToken!!,
@@ -56,14 +57,14 @@ class AuthRepository(
 
                     // Fetch or create profile, then return result based on is_active
                     ensureProfileAndReturn(authResponse.user.id)
-                } else {
-                    LoginResult.Error(parseError(response.errorBody()?.string(), "Login failed"))
-                }
-            } catch (e: Exception) {
-                LoginResult.Error(e.message ?: "Network error. Check your connection.")
+            } else {
+                    LoginResult.Error(parseError(response.errorBody()?.string(),
+                "Login failed"))
             }
+        } catch (e: Exception) {
+                LoginResult.Error(e.message ?: "Network error. Check your connection.")
         }
-
+    }
     // Signup ONLY creates the user in Supabase Auth.
     // Does NOT store tokens or navigate to dashboard.
     // User must verify email first, then login.
@@ -77,17 +78,17 @@ class AuthRepository(
                 )
                 val response = authApi.signUp(request)
                 if (response.isSuccessful) {
-                    // Supabase returns 200 with user but no tokens when
-                    // email confirmation is enabled. Either way, we do NOT auto-login.
+                // Supabase returns 200 with user but no tokens when
+                // email confirmation is enabled. Either way, we do NOT auto-login.
                     SignUpResult.NeedsEmailVerification
-                } else {
-                    SignUpResult.Error(parseError(response.errorBody()?.string(), "Sign up failed"))
-                }
-            } catch (e: Exception) {
-                SignUpResult.Error(e.message ?: "Network error. Check your connection.")
+            } else {
+                    SignUpResult.Error(parseError(response.errorBody()?.string(),
+                "Sign up failed"))
             }
+        } catch (e: Exception) {
+                SignUpResult.Error(e.message ?: "Network error. Check your connection.")
         }
-
+    }
     /**
      * Validates the current session and refreshes the cached user profile.
      * Returns a [LoginResult] so the caller can re-evaluate routing
@@ -101,7 +102,7 @@ class AuthRepository(
             if (response.isSuccessful && !response.body().isNullOrEmpty()) {
                 val userDto = response.body()!!.first()
                 // Re-cache profile data — reflects any server-side role/active changes
-                sessionManager.userRole = userDto.role
+                sessionManager.userRole = UserRole.fromString(userDto.role)
                 sessionManager.userName = userDto.name
                 sessionManager.isActive = userDto.isActive
                 sessionManager.profileImageUrl = userDto.profileImageUrl
@@ -122,7 +123,8 @@ class AuthRepository(
             // Network error — try refresh as fallback
             val refreshed = refreshToken()
             if (refreshed) {
-                try { validateSession() } catch (_: Exception) {
+                try { validateSession()
+                } catch (_: Exception) {
                     LoginResult.Error("Session validation failed")
                 }
             } else {
@@ -160,22 +162,140 @@ class AuthRepository(
         withContext(Dispatchers.IO) {
             try {
                 authApi.logout()
-            } catch (_: Exception) {
-            } finally {
+            } catch (_: Exception) {} finally {
                 sessionManager.clearSession()
             }
         }
     }
-
-    // Fetches profile from Supabase. If it doesn't exist (e.g. trigger failed),
-    // inserts a default employee profile. Never crashes.
-    // Returns LoginResult based on is_active status.
+    /**
+     * Fetches profile from Supabase. If it genuinely doesn't exist
+     * (e.g. trigger failed), inserts a default employee profile.
+     *
+     * CRITICAL — 3-STATE HANDLING:
+     *
+     *   STATE 1  response.isSuccessful && body.isNotEmpty()
+     *            → Profile exists. Use it.
+     *
+     *   STATE 2  response.isSuccessful && body.isEmpty()
+     *            → Profile genuinely missing. Safe to create.
+     *
+     *   STATE 3  !response.isSuccessful  OR  exception thrown
+     *            → HTTP error / network failure.
+     *            → NEVER create profile.
+     *            → NEVER modify database.
+     *            → Return LoginResult.Error.
+     *
+     * PROHIBITION: createDefaultProfile() must NEVER be called on
+     * 401, 403, 500, network failure, or JSON parse error.
+     */
     private suspend fun ensureProfileAndReturn(userId: String): LoginResult {
         return try {
-            val userResponse = userApi.getUserById(id = "eq.$userId")
-            if (userResponse.isSuccessful && !userResponse.body().isNullOrEmpty()) {
-                val userDto = userResponse.body()!!.first()
-                sessionManager.userRole = userDto.role
+            val response = userApi.getUserById(id = "eq.$userId")
+            val body = response.body()
+
+            when {
+                // ── STATE 1: SUCCESS + profile exists ──
+                response.isSuccessful && !body.isNullOrEmpty() -> {
+                    val userDto = body.first()
+                    sessionManager.userRole = UserRole.fromString(userDto.role)
+                    sessionManager.userName = userDto.name
+                    sessionManager.isActive = userDto.isActive
+                    sessionManager.profileImageUrl = userDto.profileImageUrl
+
+                    if (!userDto.isActive) {
+                        LoginResult.PendingApproval
+                    } else {
+                        LoginResult.Success(userDto.toModel())
+                    }
+                }
+                // ── STATE 2: SUCCESS + profile truly missing ──
+                response.isSuccessful && body.isNullOrEmpty() -> {
+                    if (com.fieldtrack.app.BuildConfig.DEBUG) {
+                        android.util.Log.d("AuthRepo",
+                        "User $userId not in public.users — creating default profile")
+                    }
+                    createDefaultProfile(userId)
+                }
+                // ── STATE 3: ANY FAILURE (401 / 403 / 500 / etc.) ──
+                else -> {
+                    if (com.fieldtrack.app.BuildConfig.DEBUG) {
+                        val errorBody = response.errorBody()?.string()
+                        android.util.Log.e("AuthRepo",
+                        "GET user HTTP ${response.code()}: $errorBody")
+                    }
+                    LoginResult.Error(
+                        "Failed to fetch profile (HTTP ${response.code()})"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            // ── STATE 3 (exception path): network timeout / JSON parse / etc. ──
+            if (com.fieldtrack.app.BuildConfig.DEBUG) {
+                android.util.Log.e("AuthRepo",
+                "ensureProfile exception", e)
+            }
+            // NEVER create profile, NEVER modify database.
+            LoginResult.Error(e.message ?: "Network error fetching profile")
+        }
+    }
+    /**
+     * Creates a default EMPLOYEE profile for a new user.
+     *
+     * Uses [ignore-duplicates] on the INSERT so an existing profile is NEVER
+     * overwritten. If a conflict occurs (profile was created concurrently by
+     * a database trigger), a recovery GET fetches the real profile instead
+     * of hardcoding EMPLOYEE / is_active=false into the session.
+     */
+    private suspend fun createDefaultProfile(userId: String): LoginResult {
+        return try {
+            val name = sessionManager.userName ?: ""
+            val dto = InsertUserDto(
+                id = userId,
+                name = name.ifBlank {
+                "Employee"
+            },
+                role = UserRole.EMPLOYEE.name,
+                isActive = false // new users need admin approval
+            )
+            val insertResponse = userApi.insertUser(dto)
+            if (insertResponse.isSuccessful && !insertResponse.body().isNullOrEmpty()) {
+                // INSERT succeeded — new profile created
+                val created = insertResponse.body()!!.first()
+                sessionManager.userRole = UserRole.fromString(created.role)
+                sessionManager.userName = created.name
+                sessionManager.isActive = created.isActive
+                sessionManager.profileImageUrl = created.profileImageUrl
+                // New profile is always pending admin approval
+                LoginResult.PendingApproval
+            } else {
+                // INSERT returned empty body — conflict (user already exists
+                // due to database trigger race). Perform a recovery GET to
+                // fetch the REAL profile instead of assuming EMPLOYEE/inactive.
+                if (com.fieldtrack.app.BuildConfig.DEBUG) {
+                    android.util.Log.d("AuthRepo",
+                    "INSERT conflict for $userId — performing recovery GET")
+                }
+                recoverProfileAfterConflict(userId)
+            }
+        } catch (e: Exception) {
+            if (com.fieldtrack.app.BuildConfig.DEBUG) {
+                android.util.Log.e("AuthRepo",
+                "createDefaultProfile exception", e)
+            }
+            LoginResult.Error(e.message ?: "Failed to create profile")
+        }
+    }
+    /**
+     * Recovery path: INSERT was silently skipped (ignore-duplicates conflict),
+     * meaning the user already exists. Fetch the real profile and return the
+     * correct LoginResult based on actual role and is_active.
+     */
+    private suspend fun recoverProfileAfterConflict(userId: String): LoginResult {
+        return try {
+            val response = userApi.getUserById(id = "eq.$userId")
+            if (response.isSuccessful && !response.body().isNullOrEmpty()) {
+                val userDto = response.body()!!.first()
+                sessionManager.userRole = UserRole.fromString(userDto.role)
                 sessionManager.userName = userDto.name
                 sessionManager.isActive = userDto.isActive
                 sessionManager.profileImageUrl = userDto.profileImageUrl
@@ -186,46 +306,11 @@ class AuthRepository(
                     LoginResult.Success(userDto.toModel())
                 }
             } else {
-                // Profile doesn't exist yet — create it (is_active = false by default)
-                createDefaultProfile(userId)
+                // Recovery GET also failed — propagate error
+                LoginResult.Error("Profile conflict recovery failed (HTTP ${response.code()})")
             }
         } catch (e: Exception) {
-            // Network error fetching profile — return fallback as pending
-            sessionManager.userRole = Constants.ROLE_EMPLOYEE
-            sessionManager.userName = ""
-            sessionManager.isActive = false
-            LoginResult.PendingApproval
-        }
-    }
-
-    private suspend fun createDefaultProfile(userId: String): LoginResult {
-        return try {
-            val name = sessionManager.userName ?: ""
-            val dto = UserDto(
-                id = userId,
-                name = name.ifBlank { "Employee" },
-                role = Constants.ROLE_EMPLOYEE,
-                isCheckedIn = false,
-                isActive = false   // new users need admin approval
-            )
-            val insertResponse = userApi.insertUser(dto)
-            if (insertResponse.isSuccessful && !insertResponse.body().isNullOrEmpty()) {
-                val created = insertResponse.body()!!.first()
-                sessionManager.userRole = created.role
-                sessionManager.userName = created.name
-                sessionManager.isActive = created.isActive
-                sessionManager.profileImageUrl = created.profileImageUrl
-            } else {
-                sessionManager.userRole = Constants.ROLE_EMPLOYEE
-                sessionManager.userName = name
-                sessionManager.isActive = false
-            }
-            // Always pending after creating a new profile
-            LoginResult.PendingApproval
-        } catch (e: Exception) {
-            sessionManager.userRole = Constants.ROLE_EMPLOYEE
-            sessionManager.isActive = false
-            LoginResult.PendingApproval
+            LoginResult.Error(e.message ?: "Profile conflict recovery failed")
         }
     }
 
@@ -242,6 +327,8 @@ class AuthRepository(
     fun isLoggedIn(): Boolean = sessionManager.isLoggedIn
 
     fun isAdmin(): Boolean = sessionManager.isAdmin
+
+    fun getUserRole(): UserRole = sessionManager.userRole
 
     fun isUserActive(): Boolean = sessionManager.isActive
 

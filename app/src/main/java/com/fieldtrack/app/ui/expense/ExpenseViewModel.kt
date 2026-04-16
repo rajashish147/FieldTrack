@@ -17,7 +17,6 @@ import com.fieldtrack.app.util.currentIso8601
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.util.UUID
 
@@ -79,7 +78,8 @@ class ExpenseViewModel(
                     category = category,
                     billImageUrl = billImageUrl,
                     status = Constants.EXPENSE_STATUS_PENDING,
-                    timestamp = currentIso8601()
+                    timestamp = currentIso8601(),
+                    employeeName = sessionManager.userName ?: ""
                 )
 
                 expenseRepository.saveExpenseLocally(expense)
@@ -100,9 +100,8 @@ class ExpenseViewModel(
         return try {
             val fileName = "${userId}/${System.currentTimeMillis()}.jpg"
             val requestBody = compressedFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-            val part = MultipartBody.Part.createFormData("file", compressedFile.name, requestBody)
 
-            val response = storageApi.uploadFile("expenses", fileName, part)
+            val response = storageApi.uploadFile("expenses", fileName, "image/jpeg", requestBody)
             if (response.isSuccessful) {
                 "expenses/$fileName"
             } else {

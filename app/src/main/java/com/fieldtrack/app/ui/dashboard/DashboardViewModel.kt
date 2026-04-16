@@ -11,7 +11,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.UserApi
-import com.fieldtrack.app.data.remote.dto.UpdateCheckInDto
 import com.fieldtrack.app.data.local.AppDatabase
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.LocationRepository
@@ -86,7 +85,7 @@ class DashboardViewModel(
         val intent = Intent(context, LocationTrackingService::class.java).apply {
             action = LocationTrackingService.ACTION_START
         }
-        context.startForegroundService(intent)
+        androidx.core.content.ContextCompat.startForegroundService(context, intent)
 
         // Schedule periodic background sync
         LocationSyncWorker.schedule(context)
@@ -212,7 +211,7 @@ class DashboardViewModel(
             val userId = sessionManager.userId ?: return
             val response = userApi.updateCheckInStatus(
                 id = "eq.$userId",
-                body = UpdateCheckInDto(isCheckedIn = checkedIn)
+                body = mapOf("is_checked_in" to checkedIn)
             )
             if (!response.isSuccessful) {
                 _error.postValue("Failed to sync check-in status with server")

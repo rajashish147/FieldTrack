@@ -15,7 +15,6 @@ import com.fieldtrack.app.data.remote.NetworkResult
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.StorageApi
 import com.fieldtrack.app.data.remote.api.UserApi
-import com.fieldtrack.app.data.remote.dto.UpdateProfileImageDto
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.SyncResult
 import com.fieldtrack.app.data.repository.LocationRepository
@@ -31,12 +30,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
-import java.util.TimeZone
 
 /**
  * ViewModel for employee home — manages check-in/out state, work timer,
@@ -408,9 +403,7 @@ class EmployeeHomeViewModel(
      */
     private fun parseIso8601Timestamp(timestamp: String): Long {
         return try {
-            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-            format.timeZone = TimeZone.getTimeZone("UTC")
-            format.parse(timestamp)?.time ?: System.currentTimeMillis()
+            java.time.Instant.parse(timestamp.replace("+00:00", "Z")).toEpochMilli()
         } catch (e: Exception) {
             System.currentTimeMillis()
         }
@@ -424,17 +417,11 @@ class EmployeeHomeViewModel(
     fun loadTodayLocations() {
         val userId = sessionManager.userId ?: return
 
-        // Calculate start of today (local timezone) and format as UTC ISO 8601
-        // to match the stored timestamp format
-        val cal = Calendar.getInstance() // local timezone
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-
-        val utcFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-        utcFormat.timeZone = TimeZone.getTimeZone("UTC")
-        val startOfToday = utcFormat.format(cal.time)
+        // Calculate start of today (IST) and format as UTC ISO-8601
+        val startOfToday = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Kolkata"))
+            .atStartOfDay(java.time.ZoneId.of("Asia/Kolkata"))
+            .toInstant()
+            .toString()
 
         // Cancel any previous collection to avoid duplicates
         locationCollectionJob?.cancel()
@@ -548,10 +535,10 @@ class EmployeeHomeViewModel(
                     // Update users table with email/phone from auth
                     userApi.updateUserEmailPhone(
                         id = "eq.$userId",
-                        body = com.fieldtrack.app.data.remote.dto.UpdateUserEmailPhoneDto(
-                            email = email,
-                            phone = phone
-                        )
+                        body = buildMap {
+                            if (email != null) put("email", email)
+                            if (phone != null) put("phone", phone)
+                        }
                     )
                 }
             } catch (e: Exception) {
@@ -600,9 +587,8 @@ class EmployeeHomeViewModel(
                 
                 val fileName = "${userId}_${System.currentTimeMillis()}.jpg"
                 val requestBody = compressedFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-                val part = MultipartBody.Part.createFormData("file", compressedFile.name, requestBody)
 
-                val response = storageApi.uploadFile("profile-images", "$userId/$fileName", part)
+                val response = storageApi.uploadFile("profile-images", "$userId/$fileName", "image/jpeg", requestBody)
                 
                 if (response.isSuccessful) {
                     "${BuildConfig.SUPABASE_URL}/storage/v1/object/profile-images/$userId/$fileName"
@@ -620,7 +606,7 @@ class EmployeeHomeViewModel(
             try {
                 val response = userApi.updateProfileImage(
                     id = "eq.$userId",
-                    body = UpdateProfileImageDto(imageUrl)
+                    body = mapOf("profile_image_url" to imageUrl)
                 )
                 response.isSuccessful
             } catch (e: Exception) {

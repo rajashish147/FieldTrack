@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.fieldtrack.app.data.repository.AuthRepository
 import com.fieldtrack.app.data.repository.LoginResult
 import com.fieldtrack.app.data.repository.SignUpResult
+import com.fieldtrack.app.data.model.UserRole
 import kotlinx.coroutines.launch
 
 class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
@@ -108,6 +109,8 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun isLoggedIn(): Boolean = authRepository.isLoggedIn()
 
     fun isAdmin(): Boolean = authRepository.isAdmin()
+
+    fun getUserRole(): UserRole = authRepository.getUserRole()
     
     fun needsProfileSetup(): Boolean = authRepository.needsProfileSetup()
 }

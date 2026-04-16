@@ -10,13 +10,11 @@ import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.data.remote.SessionManager
 import com.fieldtrack.app.data.remote.api.StorageApi
 import com.fieldtrack.app.data.remote.api.UserApi
-import com.fieldtrack.app.data.remote.dto.UpdateProfileImageDto
 import com.fieldtrack.app.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 
 class ProfileSetupViewModel(
@@ -74,13 +72,16 @@ class ProfileSetupViewModel(
                 
                 val fileName = "${userId}_${System.currentTimeMillis()}.jpg"
                 val requestBody = compressedFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
-                val part = MultipartBody.Part.createFormData("file", compressedFile.name, requestBody)
 
-                val response = storageApi.uploadFile("profile-images", "$userId/$fileName", part)
+                val response = storageApi.uploadFile("profile-images", "$userId/$fileName", "image/jpeg", requestBody)
                 
                 if (response.isSuccessful) {
                     "${BuildConfig.SUPABASE_URL}/storage/v1/object/profile-images/$userId/$fileName"
                 } else {
+                    if (BuildConfig.DEBUG) {
+                        val errorBody = response.errorBody()?.string()
+                        android.util.Log.e("ProfileSetup", "Storage upload failed ${response.code()}: $errorBody")
+                    }
                     null
                 }
             } catch (e: Exception) {
@@ -94,7 +95,7 @@ class ProfileSetupViewModel(
             try {
                 val response = userApi.updateProfileImage(
                     id = "eq.$userId",
-                    body = UpdateProfileImageDto(imageUrl)
+                    body = mapOf("profile_image_url" to imageUrl)
                 )
                 response.isSuccessful
             } catch (e: Exception) {

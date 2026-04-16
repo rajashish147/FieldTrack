@@ -4,15 +4,17 @@ import com.fieldtrack.app.data.remote.dto.ExpenseDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface ExpenseApi {
 
+    @Headers("Prefer: resolution=ignore-duplicates,return=representation")
     @POST("rest/v1/expenses")
     suspend fun insertExpense(
-        @Body expense: ExpenseDto
+        @Body expense: Map<String, @JvmSuppressWildcards Any>
     ): Response<Unit>
 
     @GET("rest/v1/expenses")
@@ -24,7 +26,7 @@ interface ExpenseApi {
 
     @GET("rest/v1/expenses")
     suspend fun getAllExpenses(
-        @Query("select") select: String = "*",
+        @Query("select") select: String = "*,user:users(name,email)",
         @Query("order") order: String = "timestamp.desc"
     ): Response<List<ExpenseDto>>
 

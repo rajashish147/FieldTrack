@@ -4,6 +4,9 @@ import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.data.remote.dto.AuthResponse
 import com.fieldtrack.app.data.remote.dto.RefreshTokenRequest
 import com.google.gson.Gson
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.Authenticator
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -17,22 +20,33 @@ class TokenAuthenticator(
 ) : Authenticator {
 
     private val gson = Gson()
+    private val refreshMutex = Mutex()
 
     override fun authenticate(route: Route?, response: Response): Request? {
-        // CRITICAL: Don't clear session during checkout
-        // Checkout lock prevents premature session clearing
+        val currentToken = sessionManager.accessToken
+        
+        synchronized(this) {
+            val latestToken = sessionManager.accessToken
+            
+            if (currentToken != latestToken && latestToken != null) {
+                return response.request.newBuilder()
+                    .header("Authorization", "Bearer $latestToken")
+                    .build()
+            }
+        }
+        
         if (sessionManager.isCheckoutInProgress()) {
-            // During checkout, attempt refresh but don't clear session on failure
-            // This allows final sync to complete even if token expires
             val refreshToken = sessionManager.refreshToken ?: return null
-            val newToken = refreshAccessToken(refreshToken) ?: return null
-            sessionManager.accessToken = newToken
+            val newToken = runBlocking {
+                refreshMutex.withLock {
+                    refreshAccessToken(refreshToken)
+                }
+            } ?: return null
             return response.request.newBuilder()
                 .header("Authorization", "Bearer $newToken")
                 .build()
         }
         
-        // Normal flow: clear session after 2 failed attempts
         if (responseCount(response) >= 2) {
             sessionManager.clearSession()
             return null
@@ -43,12 +57,14 @@ class TokenAuthenticator(
             return null
         }
 
-        val newToken = refreshAccessToken(refreshToken) ?: run {
+        val newToken = runBlocking {
+            refreshMutex.withLock {
+                refreshAccessToken(refreshToken)
+            }
+        } ?: run {
             sessionManager.clearSession()
             return null
         }
-
-        sessionManager.accessToken = newToken
 
         return response.request.newBuilder()
             .header("Authorization", "Bearer $newToken")

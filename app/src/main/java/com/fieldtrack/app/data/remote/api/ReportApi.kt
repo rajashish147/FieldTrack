@@ -4,11 +4,13 @@ import com.fieldtrack.app.data.remote.dto.ReportDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface ReportApi {
 
+    @Headers("Prefer: resolution=merge-duplicates,return=representation")
     @POST("rest/v1/reports")
     suspend fun insertReport(
         @Body report: ReportDto

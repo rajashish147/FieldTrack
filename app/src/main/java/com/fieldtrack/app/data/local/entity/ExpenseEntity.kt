@@ -38,7 +38,8 @@ data class ExpenseEntity(
         category = category,
         billImageUrl = billImageUrl,
         status = status,
-        timestamp = timestamp
+        timestamp = timestamp,
+        employeeName = ""
     )
 
     companion object {

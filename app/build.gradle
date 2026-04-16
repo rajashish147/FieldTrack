@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'kotlin-kapt'
+    id 'com.google.devtools.ksp'
     id 'kotlin-parcelize'
     id 'androidx.navigation.safeargs.kotlin'
 }
@@ -13,14 +13,14 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace 'com.fieldtrack.app'
-    compileSdk 34
+    namespace = 'com.fieldtrack.app'
+    compileSdk = 34
 
     defaultConfig {
         applicationId "com.fieldtrack.app"
-        minSdk 24
-        targetSdk 34
-        versionCode 1
+        minSdk = 24
+        targetSdk = 34
+        versionCode 100
         versionName "1.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -33,19 +33,20 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            minifyEnabled false
-            debuggable true
+            minifyEnabled = false
+            debuggable = true
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        coreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
@@ -53,8 +54,8 @@ android {
     }
 
     buildFeatures {
-        viewBinding true
-        buildConfig true
+        viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -82,9 +83,9 @@ dependencies {
     implementation 'androidx.navigation:navigation-ui-ktx:2.7.6'
 
     // Room (Local Cache)
-    implementation 'androidx.room:room-runtime:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    kapt 'androidx.room:room-compiler:2.6.1'
+    implementation 'androidx.room:room-runtime:2.7.1'
+    implementation 'androidx.room:room-ktx:2.7.1'
+    ksp 'androidx.room:room-compiler:2.7.1'
 
     // Retrofit + OkHttp (Supabase REST API)
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
@@ -112,6 +113,9 @@ dependencies {
 
     // Work Manager (Sync scheduling)
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
+
+    // Core Library Desugaring
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 
     // Testing
     testImplementation 'junit:junit:4.13.2'

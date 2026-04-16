@@ -2,6 +2,7 @@ package com.fieldtrack.app.di
 
 import com.fieldtrack.app.BuildConfig
 import com.fieldtrack.app.data.remote.AuthInterceptor
+import com.fieldtrack.app.data.remote.RetryInterceptor
 import com.fieldtrack.app.data.remote.SecureLoggingInterceptor
 import com.fieldtrack.app.data.remote.TokenAuthenticator
 import com.fieldtrack.app.util.ConfigValidator
@@ -29,6 +30,7 @@ val networkModule = module {
     single {
         OkHttpClient.Builder()
             .addInterceptor(get<AuthInterceptor>())
+            .addInterceptor(RetryInterceptor())
             .addInterceptor(get<SecureLoggingInterceptor>())
             .authenticator(get<TokenAuthenticator>())
             .connectTimeout(30, TimeUnit.SECONDS)

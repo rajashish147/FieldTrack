@@ -81,11 +81,7 @@ class EmployeeHomeActivity : AppCompatActivity() {
     
     private fun registerCheckoutReceiver() {
         val filter = IntentFilter(LocationTrackingService.ACTION_REQUEST_CHECKOUT)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(checkoutReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(checkoutReceiver, filter)
-        }
+        ContextCompat.registerReceiver(this, checkoutReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
     
     override fun onDestroy() {

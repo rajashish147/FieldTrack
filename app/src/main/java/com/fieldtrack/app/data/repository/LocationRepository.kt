@@ -47,7 +47,7 @@ class LocationRepository(
                     ?: return@withContext NetworkResult.Error("No user ID")
                 val response = userApi.updateCheckInStatus(
                     id = "eq.$userId",
-                    body = UpdateCheckInDto(isCheckedIn = isCheckedIn)
+                    body = mapOf("is_checked_in" to isCheckedIn)
                 )
                 if (response.isSuccessful) {
                     NetworkResult.Success(Unit)
@@ -99,22 +99,39 @@ class LocationRepository(
                 
                 // 4. Upload to server
                 val dtos = toSync.map { LocationDto.fromModel(it.toModel()) }
-                Log.d("DTO_DEBUG", "Syncing DTOs: ${com.google.gson.Gson().toJson(dtos)}")
                 val response = locationApi.insertLocations(dtos)
                 
                 if (response.isSuccessful) {
-                    // 5. Mark as SYNCED (atomic transaction)
-                    locationDao.markAsSyncedNew(ids)
+                    val insertedRows = response.body()
+                    val insertedCount = insertedRows?.size ?: 0
+                    val sentCount = dtos.size
                     
-                    // 6. Update user's last_synced_at
-                    updateUserLastSyncTime(userId)
-                    
-                    Log.d(TAG, "Successfully synced ${ids.size} locations")
-                    
-                    SyncResult.Success(
-                        synced = ids.size,
-                        timestamp = System.currentTimeMillis()
-                    )
+                    if (insertedCount == sentCount) {
+                        // 5. Mark as SYNCED (atomic transaction)
+                        locationDao.markAsSyncedNew(ids)
+                        
+                        // 6. Update user's last_synced_at
+                        updateUserLastSyncTime(userId)
+                        
+                        Log.d(TAG, "Successfully synced ${ids.size} locations")
+                        
+                        SyncResult.Success(
+                            synced = ids.size,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    } else {
+                        // 5. Partial failure: mark as FAILED
+                        val errorMsg = "Partial insert: sent=$sentCount, inserted=$insertedCount"
+                        Log.w(TAG, errorMsg)
+                        
+                        val (failed, abandoned) = handleSyncFailure(toSync, errorMsg)
+                        
+                        SyncResult.Failed(
+                            reason = errorMsg,
+                            failed = failed + abandoned,
+                            errors = listOf(errorMsg)
+                        )
+                    }
                 } else {
                     // 7. Handle HTTP failure
                     val errorMsg = "HTTP ${response.code()}: ${response.message()}"

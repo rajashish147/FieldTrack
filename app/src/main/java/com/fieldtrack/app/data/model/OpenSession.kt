@@ -45,30 +45,6 @@ data class OpenSession(
      * Example: "Today, 8:30 AM"
      */
     fun getFormattedCheckInTime(): String {
-        return try {
-            val checkInDateTime = java.time.LocalDateTime.ofInstant(
-                checkInAt, 
-                java.time.ZoneId.systemDefault()
-            )
-            val now = java.time.LocalDateTime.now()
-            
-            val checkInDate = checkInDateTime.toLocalDate()
-            val today = now.toLocalDate()
-            val yesterday = today.minusDays(1)
-            
-            val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("h:mm a")
-            val timeStr = checkInDateTime.format(timeFormatter)
-            
-            when (checkInDate) {
-                today -> "Today, $timeStr"
-                yesterday -> "Yesterday, $timeStr"
-                else -> {
-                    val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("d MMM, h:mm a")
-                    checkInDateTime.format(dateFormatter)
-                }
-            }
-        } catch (e: Exception) {
-            "Unknown"
-        }
+        return com.fieldtrack.app.util.TimeUtils.formatForDisplay(checkInAt.toString())
     }
 }

@@ -17,7 +17,10 @@ data class ExpenseDto(
     @SerializedName("status")
     val status: String,
     @SerializedName("timestamp")
-    val timestamp: String
+    val timestamp: String,
+    /** Relational expansion — populated by GET select, excluded from POST via Map body */
+    @SerializedName("user")
+    val user: UserRelationDto? = null
 ) {
     fun toModel(): Expense = Expense(
         id = id,
@@ -26,7 +29,8 @@ data class ExpenseDto(
         category = category,
         billImageUrl = billImageUrl ?: "",
         status = status,
-        timestamp = timestamp
+        timestamp = timestamp,
+        employeeName = user?.name ?: userId
     )
 
     companion object {

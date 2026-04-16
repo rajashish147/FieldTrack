@@ -4,15 +4,17 @@ import com.fieldtrack.app.data.remote.dto.LocationDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface LocationApi {
 
+    @Headers("Prefer: resolution=merge-duplicates,return=representation")
     @POST("rest/v1/locations")
     suspend fun insertLocations(
         @Body locations: List<LocationDto>
-    ): Response<Unit>
+    ): Response<List<LocationDto>>
 
     @GET("rest/v1/locations")
     suspend fun getLocationsByUser(

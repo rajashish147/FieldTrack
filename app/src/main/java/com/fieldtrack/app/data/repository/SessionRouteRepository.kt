@@ -139,7 +139,9 @@ class SessionRouteRepository(
             result
 
         } catch (e: Exception) {
-            Log.e(TAG, "getSessionRoute: exception for session $sessionId, userId $targetUserId", e)
+            if (BuildConfig.DEBUG) {
+                Log.e(TAG, "getSessionRoute: exception for session $sessionId, userId $targetUserId", e)
+            }
             null
         }
     }
@@ -169,7 +171,9 @@ class SessionRouteRepository(
             )
             entities.isNotEmpty()
         } catch (e: Exception) {
-            Log.e(TAG, "hasRouteData: exception for session $sessionId", e)
+            if (BuildConfig.DEBUG) {
+                Log.e(TAG, "hasRouteData: exception for session $sessionId", e)
+            }
             false
         }
     }

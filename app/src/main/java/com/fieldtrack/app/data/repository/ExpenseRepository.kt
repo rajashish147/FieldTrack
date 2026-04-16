@@ -101,8 +101,19 @@ class ExpenseRepository(
                 
                 for (entity in toSync) {
                     try {
-                        val dto = ExpenseDto.fromModel(entity.toModel())
-                        val response = expenseApi.insertExpense(dto)
+                        val model = entity.toModel()
+                        val body = mutableMapOf<String, Any>(
+                            "id" to model.id,
+                            "user_id" to model.userId,
+                            "amount" to model.amount,
+                            "category" to model.category,
+                            "status" to model.status,
+                            "timestamp" to model.timestamp
+                        )
+                        if (model.billImageUrl.isNotBlank()) {
+                            body["bill_image_url"] = model.billImageUrl
+                        }
+                        val response = expenseApi.insertExpense(body)
                         
                         if (response.isSuccessful) {
                             expenseDao.markAsSyncedNew(listOf(entity.id))
@@ -191,7 +202,12 @@ class ExpenseRepository(
             try {
                 val response = expenseApi.getAllExpenses()
                 if (response.isSuccessful && response.body() != null) {
-                    val expenses = response.body()!!.map { it.toModel() }
+                    val expenses = response.body()!!.map { dto ->
+                        if (com.fieldtrack.app.BuildConfig.DEBUG) {
+                            Log.d("ExpenseRelation", "Expense ${dto.id} → user=${dto.user?.name}")
+                        }
+                        dto.toModel()
+                    }
                     NetworkResult.Success(expenses)
                 } else {
                     NetworkResult.Error("Failed to fetch expenses")

@@ -467,7 +467,6 @@ class LocationTrackingService : Service() {
                     // - If user checks out between location fix and save, sessionId will be null
                     // - This is correct behavior (location captured during transition)
                     val currentSessionId = sessionManager.currentSessionId
-                    Log.d("SESSION_DEBUG", "Service sees sessionId = $currentSessionId")
                     
                     // INVARIANT S1 CHECK: isCheckedIn == true ⇒ currentSessionId != null
                     try {
