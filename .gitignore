@@ -1,34 +1,14 @@
-# Built artifacts
-*.iml
-.gradle
-/build
-/app/build
-/app/release
-*.apk
-*.aab
-*.hprof
-/supabase-ai
-
-# IDE
-/.idea/
-.DS_Store
-*.log
-.vscode/
-.kiro/
-
-# Local config (secrets)
+.gradle/
+build/
 local.properties
-
-# Native
-.externalNativeBuild
-.cxx
-
-# Signing
-*.jks
 *.keystore
-
-# Keep Gradle wrapper
-!gradle/wrapper/gradle-wrapper.jar
-
-# OS
-Thumbs.db
+*.jks
+.idea/
+*.log
+captures/
+.DS_Store
+app/build/
+*/build/
+build_*.txt
+tasks_app.txt
+.kotlin/

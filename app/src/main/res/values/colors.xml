@@ -1,30 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#1565C0</color>
-    <color name="primary_dark">#0D47A1</color>
-    <color name="primary_variant">#1976D2</color>
-    <color name="on_primary">#FFFFFF</color>
-
-    <color name="secondary">#00897B</color>
-    <color name="secondary_variant">#00695C</color>
-    <color name="on_secondary">#FFFFFF</color>
-
-    <color name="background">#FAFAFA</color>
-    <color name="on_background">#212121</color>
-
-    <color name="surface">#FFFFFF</color>
-    <color name="on_surface">#212121</color>
-    <color name="on_surface_variant">#757575</color>
-
-    <color name="error">#D32F2F</color>
-    <color name="on_error">#FFFFFF</color>
-
-    <color name="status_approved">#2E7D32</color>
-    <color name="status_rejected">#C62828</color>
-    <color name="status_pending">#F57F17</color>
-
-    <color name="session_active_tint">#FFF3E0</color>
-    <color name="session_active_accent">#FF6F00</color>
-
-    <color name="divider">#E0E0E0</color>
+    <!-- Splash screen background — matches GradientPrimaryStart (#381E72) -->
+    <color name="splash_bg">#381E72</color>
 </resources>

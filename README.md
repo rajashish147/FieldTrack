@@ -1,337 +1,78 @@
-# FieldTrack — Enterprise Field Employee Tracking System (Android)
+# FieldTrack Android
 
-⚠️ **Source-available portfolio project. Commercial use requires permission.**
+Native Android client for FieldTrack employee and admin workflows.
 
-**Version:** 1.0.0
-**Platform:** Android (API 24+)
-**Architecture:** Offline-first, enterprise-grade
-**Status:** Production-ready (portfolio release)
+The debug build and lint checks ran locally. An emulator with simulated camera and GPS completed check-in, GPS sync, warehouse arrival, and checkout against a local API fixture.
 
-FieldTrack is a secure, production-grade Android application designed for tracking field employee attendance sessions, GPS location history, reports, and expenses with enterprise-level reliability, privacy protection, and offline support.
+## Features
 
-This project demonstrates real-world architecture patterns used in enterprise workforce tracking systems and serves as the foundation for a future multi-tenant SaaS platform.
+- Employee check-in with an in-app front-camera selfie and fresh accurate GPS; check-out.
+- Saved JPEG footer with coordinates, accuracy and photo/GPS times in IST (UTC+05:30), plus GPS EXIF.
+- Preset work sites, GPS-verified arrival, and daily, weekly, and monthly earnings on employee home.
+- Foreground GPS tracking during active attendance sessions.
+- Local Room queues and bounded location/expense retry workers; see limitations below.
+- Employee session history with backend status filters.
+- Expense submission and status-filtered expense history.
+- Admin dashboard, employees, live tracking, and expense review.
 
----
+## Architecture
 
-# Key Highlights
+The app uses MVVM with a clean separation between:
 
-• Offline-first architecture with deterministic sync engine
-• Secure session-based GPS tracking
-• Enterprise-grade concurrency-safe authentication
-• Crash-safe persistent state management
-• Supabase backend with strict Row Level Security
-• Idempotent sync preventing duplicate or lost records
-• Admin dashboard with live employee tracking
-• Production-hardened release build (ProGuard, resource shrinking)
+- `core/network`: Retrofit API contract and DTOs.
+- `core/data`: session storage, Room database, and dependency wiring.
+- `features`: presentation and ViewModel logic for auth, employee, and admin flows.
+- `service`: foreground location tracking and WorkManager retry/recovery workers.
 
----
+## Setup
 
-# Screenshots
+1. Install Android Studio and a compatible JDK (JVM target 17; this audit used JDK 21).
+2. Open this folder as the project root.
+3. Let Gradle sync dependencies.
+4. For local API testing, create `local.properties` with:
 
-(Add screenshots in `/screenshots` folder)
-
-| Employee Home                              | Tracking Map                         | Admin Dashboard                           |
-| ------------------------------------------ | ------------------------------------ | ----------------------------------------- |
-| ![Employee](screenshots/employee_home.png) | ![Map](screenshots/tracking_map.png) | ![Admin](screenshots/admin_dashboard.png) |
-
----
-
-# Features
-
-## Employee Features
-
-### Secure Authentication
-
-* Email/password authentication via Supabase GoTrue (JWT)
-* Automatic token refresh with thread-safe authenticator
-* Session persistence with atomic commit guarantees
-
-### Attendance Tracking
-
-* Explicit Check-in / Check-out workflow
-* Server-verified attendance sessions
-* Accurate work duration tracking
-* Crash-safe session recovery
-
-### GPS Location Tracking
-
-* Foreground location service using Fused Location Provider
-* High-accuracy tracking with configurable intervals
-* Session-linked location history
-* Real-time route visualization via Google Maps
-* Mock location detection and abuse prevention
-
-### Offline-First Sync
-
-* Full offline operation using Room database
-* Deterministic sync state machine
-* Automatic retry using WorkManager
-* Zero data loss guarantee
-
-### Reports
-
-* Daily report submission
-* Optional image attachments
-* Offline creation with background sync
-
-### Expense Tracking
-
-* Expense submission with bill images
-* Approval workflow
-* Sync-safe idempotent inserts
-
----
-
-## Admin Features
-
-### Employee Management
-
-* View all employees
-* Approve or deactivate accounts
-
-### Live Tracking
-
-* View employees with last sync timestamps
-* Drill-down to employee map view
-* View last known employee location
-
-### Report Management
-
-* View all employee reports
-
-### Expense Management
-
-* Approve or reject expense submissions
-
----
-
-# Architecture Overview
-
-FieldTrack follows a strict offline-first MVVM architecture:
-
-
-UI (Fragments)
-    ↓
-ViewModels
-    ↓
-Repositories (Single Source of Truth)
-    ↓
-Room DB ←→ Retrofit API ←→ Supabase Backend
-    ↓
-WorkManager Sync Engine
+```properties
+API_BASE_URL=http://10.0.2.2:3000/
 ```
 
-This architecture guarantees:
+Production builds default to `https://api.getfieldtrack.app/`.
 
-• Crash safety
-• Offline reliability
-• Data consistency
-• Secure access isolation
+## Run
 
----
+Use Android Studio Run, or:
 
-# Tech Stack
-
-| Layer                | Technology                             |
-| -------------------- | -------------------------------------- |
-| Language             | Kotlin                                 |
-| Architecture         | MVVM + Repository Pattern              |
-| Dependency Injection | Koin                                   |
-| Local Storage        | Room Database                          |
-| Networking           | Retrofit + OkHttp                      |
-| Backend              | Supabase (PostgreSQL, REST, Auth, RLS) |
-| Location             | Fused Location Provider                |
-| Maps                 | Google Maps SDK                        |
-| Background Sync      | WorkManager                            |
-| Authentication       | JWT (Supabase GoTrue)                  |
-| Security             | EncryptedSharedPreferences             |
-
----
-
-# Security Model
-
-FieldTrack implements enterprise-grade security controls:
-
-### Authentication Security
-
-* JWT-based authentication
-* Automatic token refresh
-* Thread-safe authenticator
-
-### Data Isolation
-
-* Supabase Row Level Security (RLS)
-* All queries scoped to authenticated user ID
-
-### Storage Security
-
-* Encrypted token storage
-* No sensitive production logging
-
-### Sync Integrity
-
-* UPSERT-based sync prevents duplicates
-* Sync verification prevents data loss
-
----
-
-# Sync State Machine
-
-
-LOCAL_ONLY → SYNCING → SYNCED
-                   ↘ FAILED → RETRY
+```powershell
+.\gradlew.bat :app:assembleDebug
 ```
 
-Guarantees reliable sync under all conditions.
+For the local compile/test-task checks used in this audit:
 
----
-
-# Demo / Evaluation Instructions
-
-You can evaluate FieldTrack locally:
-
-## Step 1 — Create Supabase Project
-
-Create a Supabase project and run:
-
-
-supabase/schema.sql
+```powershell
+java -jar .\gradle\wrapper\gradle-wrapper.jar :app:compileDebugKotlin :app:testDebugUnitTest --console=plain
 ```
 
----
+API defaults to port 3000; use a separate API port when also running the web app.
+Release signing is not configured in the checked-in Gradle file; configure the
+signing/distribution process before company rollout. Apply the API's required
+field-operations schema and deploy matching clients; no live migration was run.
 
-## Step 2 — Configure Local Environment
+## Permissions
 
-Copy:
+- Internet and network state.
+- Fine and coarse location.
+- Camera (runtime) for the in-app selfie; a usable front camera is required for attendance.
+- Foreground service location.
+- Wake lock and boot completed for recovery workers.
+- Notifications on Android 13+.
 
+## Company workflow
 
-local.properties.example → local.properties
-```
+An employee starts a shift with the front camera and a fresh precise GPS fix. The app corrects image orientation, embeds GPS in EXIF, and stamps coordinates, accuracy, and timestamps below the photo. The signed upload uses a separate client. Employees select a configured site and tap **I’ve reached** to submit a current GPS fix. The server checks the arrival radius and applies the visit rate.
 
-Add:
+Android sends GPS while a shift is active and preserves unsent fixes in Room for retry. The server can accept valid historical fixes within the shift and its 48-hour sync window. Admins can view active staff on the live map. Reopen the app after reboot or force-stop to restore on-duty tracking under Android's foreground-service rules.
 
+The employee home reports attendance, work time, and visit earnings. Monthly basic pay is displayed separately. Admins configure sites, rates and basic pay in the web dashboard.
 
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-```
+## Local verification
 
----
-
-## Step 3 — Build and Run
-
-
-./gradlew assembleDebug
-```
-
-Install on Android device.
-
----
-
-## Step 4 — Create Admin User
-
-Register a user normally, then promote to admin:
-
-```sql
-update users
-set role = 'ADMIN'
-where email = 'your-email@example.com';
-```
-
----
-
-# Project Structure
-
-
-app/src/main/java/com/fieldtrack/app/
-
-data/
-├── local/
-├── model/
-├── remote/
-└── repository/
-
-di/
-
-service/
-
-ui/
-├── admin/
-├── auth/
-├── employee/
-├── expense/
-└── report/
-
-util/
-```
-
----
-
-# Release Information
-
-Current version:
-
-```
-VersionCode: 100
-VersionName: 1.0.0
-```
-
-Release build is:
-
-• ProGuard optimized
-• Privacy safe
-• Production hardened
-
----
-
-# Production Safety Guarantees
-
-FieldTrack ensures:
-
-• Crash-safe session persistence
-• Thread-safe authentication
-• Data integrity protection
-• Privacy-safe logging
-• Offline reliability
-
----
-
-# Minimum Requirements
-
-Android 7.0 (API 24) or higher
-
----
-
-# Future Roadmap
-
-Planned evolution into enterprise SaaS platform:
-
-• Multi-tenant architecture
-• Web admin dashboard
-• Enterprise deployment
-• Advanced analytics
-• SaaS subscription model
-
----
-
-# License
-
-FieldTrack is source-available software.
-
-Copyright © 2026 Ashish Raj.
-
-All rights reserved.
-
-This code is publicly visible for portfolio and educational purposes only.
-Commercial use, modification, or redistribution requires explicit permission.
-
----
-
-# Author
-
-Ashish Raj
-
-FieldTrack — Enterprise Workforce Tracking System
-
-GitHub: https://github.com/rajashish147
-
-Contact: [rajashish147@gmail.com](mailto:rajashish147@gmail.com)
+The debug APK built successfully and Android lint reported zero errors. The unit-test task has no test sources. Verify camera rotation, GPS accuracy, battery management, and tracking recovery on physical devices using the company's staging API.

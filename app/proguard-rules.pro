@@ -1,58 +1,93 @@
-# Retrofit
--keepattributes Signature
--keepattributes Exceptions
--keepclassmembers,allowshrinking,allowobfuscation interface * {
-    @retrofit2.http.* <methods>;
-}
--dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
--dontwarn javax.annotation.**
--dontwarn kotlin.Unit
--dontwarn retrofit2.KotlinExtensions
--dontwarn retrofit2.KotlinExtensions$*
--if interface * { @retrofit2.http.* <methods>; }
--keep,allowobfuscation interface <1>
+# ─── FieldTrack ProGuard Rules (PRODUCTION) ──────────────────────────────────
+# Version: 2.0.0
+# Keep rules are additive — remove only what is explicitly confirmed unused.
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Gson
+# ── Kotlin ────────────────────────────────────────────────────────────────────
+-keepclassmembers class kotlin.Metadata { *; }
+-dontwarn kotlin.**
+
+# ── Hilt (DI) ─────────────────────────────────────────────────────────────────
+-keep class dagger.hilt.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.* { *; }
+-keepclasseswithmembernames class * {
+    @dagger.hilt.* <fields>;
+    @dagger.hilt.* <methods>;
+}
+-dontwarn dagger.hilt.**
+
+# ── Retrofit + OkHttp ────────────────────────────────────────────────────────
 -keepattributes Signature
 -keepattributes *Annotation*
--dontwarn sun.misc.**
--keep class com.google.gson.stream.** { *; }
--keep class com.fieldtrack.app.data.remote.dto.** { *; }
--keep class com.fieldtrack.app.data.model.** { *; }
-
-# OkHttp
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-keepclassmembernames interface * {
+    @retrofit2.http.* <methods>;
+}
+-dontwarn retrofit2.**
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
-# Room
--keep class * extends androidx.room.RoomDatabase
--dontwarn androidx.room.paging.**
+# ── Gson (DTO serialization) ──────────────────────────────────────────────────
+-keepattributes Signature
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
 
-# Google Maps
--keep class com.google.android.gms.maps.** { *; }
--dontwarn com.google.android.gms.maps.**
+# ── FieldTrack DTOs — keep ALL data class fields ─────────────────────────────
+# Without this, Gson reflection fails on minified builds.
+-keep class com.fieldtrack.app.core.network.dto.** { *; }
 
-# Coroutines
--keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
--keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+# ── Room ──────────────────────────────────────────────────────────────────────
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao class * { *; }
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    abstract *;
+}
+-dontwarn androidx.room.**
 
-# Coil
--dontwarn coil.**
--keep class coil.** { *; }
+# ── WorkManager ───────────────────────────────────────────────────────────────
+-keep class * extends androidx.work.Worker { *; }
+-keep class * extends androidx.work.CoroutineWorker { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }
+-keepclassmembers class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-dontwarn androidx.work.**
 
-# Koin
--keepnames class org.koin.** { *; }
--keep class org.koin.core.** { *; }
--dontwarn org.koin.**
+# ── FieldTrack Workers ────────────────────────────────────────────────────────
+-keep class com.fieldtrack.app.service.LocationSyncWorker { *; }
+-keep class com.fieldtrack.app.service.SessionRecoveryWorker { *; }
+-keep class com.fieldtrack.app.service.ExpenseRetryWorker { *; }
 
-# Security - keep EncryptedSharedPreferences
--keep class androidx.security.crypto.** { *; }
+# ── DataStore ─────────────────────────────────────────────────────────────────
+-keep class androidx.datastore.** { *; }
+-dontwarn androidx.datastore.**
 
-# Prevent R8 from stripping data classes used in serialization
--keep class com.fieldtrack.app.data.local.entity.** { *; }
+# ── OSMDroid (maps) ───────────────────────────────────────────────────────────
+-keep class org.osmdroid.** { *; }
+-dontwarn org.osmdroid.**
 
-# Strip debug and info logs from release builds
+# ── Crash Reporter ────────────────────────────────────────────────────────────
+-keep class com.fieldtrack.app.core.crash.CrashReporter { *; }
+
+# ── FieldTrack Services ───────────────────────────────────────────────────────
+-keep class com.fieldtrack.app.service.LocationForegroundService { *; }
+-keep class com.fieldtrack.app.service.BootReceiver { *; }
+
+# ── Coroutines ────────────────────────────────────────────────────────────────
+-keepclassmembernames class kotlinx.** {
+    volatile <fields>;
+}
+-dontwarn kotlinx.coroutines.**
+
+# ── Compose ───────────────────────────────────────────────────────────────────
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+
+# ── Remove debug-only code in release ─────────────────────────────────────────
 -assumenosideeffects class android.util.Log {
-    public static *** d(...);
-    public static *** i(...);
+    public static int d(...);
+    public static int v(...);
 }

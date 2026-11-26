@@ -1,64 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FieldTrack</string>
-    <string name="login">Login</string>
-    <string name="sign_up">Sign Up</string>
-    <string name="email">Email</string>
-    <string name="password">Password</string>
-    <string name="full_name">Full Name</string>
-    <string name="check_in">Check In</string>
-    <string name="check_out">Check Out</string>
-    <string name="sync_data">Sync Data</string>
-    <string name="logout">Logout</string>
-    <string name="home">Home</string>
-    <string name="map">Map</string>
-    <string name="reports">Reports</string>
-    <string name="expenses">Expenses</string>
-    <string name="submit">Submit</string>
-    <string name="cancel">Cancel</string>
-    <string name="add_report">Add Report</string>
-    <string name="add_expense">Add Expense</string>
-    <string name="no_data">No data available</string>
-    <string name="tracking_active">Location tracking is active</string>
-    <string name="tracking_notification_title">FieldTrack</string>
 
-    <!-- RBAC: New strings -->
-    <string name="attendance">Attendance</string>
-    <string name="my_location">My Location</string>
-    <string name="employees">Employees</string>
-    <string name="approvals">Approvals</string>
-    <string name="live_tracking">Live Tracking</string>
-    <string name="approve">Approve</string>
-    <string name="deactivate">Deactivate</string>
-    <string name="retry">Retry</string>
-    <string name="all_data_synced">All data synced</string>
-    <string name="no_employees">No employees found</string>
-    <string name="no_pending_approvals">No pending approvals</string>
+    <!-- Foreground service notification channel strings -->
+    <string name="tracking_notification_title">FieldTrack — Session Active</string>
+    <string name="tracking_notification_text">Tracking your field session…</string>
+    <string name="tracking_channel_name">Location Tracking</string>
+    <string name="tracking_channel_description">FieldTrack active session GPS tracking</string>
 
-    <string name="pending_approval_title">Account Pending Approval</string>
-    <string name="pending_approval_message">Your account is awaiting admin approval.\nPlease check back later or contact your administrator.</string>
-
-    <string name="expense_coming_soon">Expense submission coming soon.\nThis feature is under development.</string>
-    <string name="location_coming_soon">Location view coming soon.\nThis feature is under development.</string>
-    <string name="tracking_coming_soon">Live GPS tracking coming soon.\nThis feature is under development.</string>
-
-    <string name="employee_approved">Employee approved</string>
-    <string name="employee_deactivated">Employee deactivated</string>
-
-    <string name="active">Active</string>
-    <string name="inactive">Inactive</string>
-    <string name="pending">Pending</string>
-
-    <!-- v1.4 - Admin Session History -->
-    <string name="session_still_active">Still Active</string>
-    <string name="session_history">Session History</string>
-    <string name="no_session_history">No sessions found</string>
-    <string name="no_session_history_hint">This employee has not checked in yet</string>
-    <string name="view_session_history">View Session History</string>
-
-    <plurals name="session_count">
-        <item quantity="one">1 session</item>
-        <item quantity="other">%d sessions</item>
-    </plurals>
-
+    <!-- Permission rationale strings -->
+    <string name="permission_location_rationale_title">Location Access Required</string>
+    <string name="permission_location_rationale_body">FieldTrack needs location permission to track your field activity during a session.</string>
+    <string name="permission_notification_rationale_body">Notification permission is needed to show a persistent notification while tracking is active.</string>
 </resources>
